@@ -2,20 +2,20 @@ import torch.nn.functional as F
 import torch
 
 
-class Transformer(torch.nn.Module):
+class Decoder(torch.nn.Module):
 
-    def __init__(self, n_layers, d):
-        super(Transformer, self).__init__()
+    def __init__(self, n_layers, d, h):
+        super(Decoder, self).__init__()
 
         self.blocks = [
-            TransformerBlock(d) for i in range(n_layers)
+            TransformerBlock(d, h) for i in range(n_layers)
         ]
 
 
     def forward(self, X):
-
+        
         for block in self.blocks:
-            X = block(x)
+            X = self.block(X)
 
         return X
 
@@ -23,28 +23,52 @@ class Transformer(torch.nn.Module):
 class TransformerBlock(torch.nn.Module):
 
 
-    def __init__(self, d):
+    def __init__(self, d, h):
         super(TransformerBlock, self).__init__()
-        self.attention = SelfAttentionLayer(d)
-        self.ffn = FeedForwardLayer(d)
+        self.attn = MultiHeadAttentionLayer(d, h)
+        self.ffn = FeedForwardLayer(d, d)
         self.norm = LayerNorm()
 
 
     def forward(self, X):
-        X = self.norm(X + self.attention(X))
+        X = self.norm(X + self.attn(X))
         X = self.norm(X + self.ffn(X))
         return X
+
+
+class MultiHeadAttentionLayer(torch.nn.Module):
+
+    
+    def __init__(self, d, h):
+        super(MultiHeadAttentionLayer, self).__init__()
+
+        self.heads = [
+            SelfAttentionLayer(d, d//h) for i in range(h)
+        ]
+
+        self.W_o = torch.nn.Linear(d, d)
+        self.dh = d//h
+        self.h = h
+        self.d = d
+
+    def forward(self, X):
+        Z = []
+        for i in range(self.h):
+            Z.append(self.heads[i](X))
+
+        Z = torch.cat(Z, dim=1)
+        return Z
 
 
 class SelfAttentionLayer(torch.nn.Module):
 
 
-    def __init__(self, d):
+    def __init__(self, d_in, d_out):
         super(SelfAttentionLayer, self).__init__()
-        self.W_q = torch.nn.Linear(d, d)
-        self.W_k = torch.nn.Linear(d, d)
-        self.W_v = torch.nn.Linear(d, d)
-        self.d = torch.Tensor([d])
+        self.W_q = torch.nn.Linear(d_in, d_out)
+        self.W_k = torch.nn.Linear(d_in, d_out)
+        self.W_v = torch.nn.Linear(d_in, d_out)
+        self.d = torch.Tensor([d_out])
 
 
     def forward(self, X):
@@ -59,9 +83,9 @@ class SelfAttentionLayer(torch.nn.Module):
 
 class FeedForwardLayer(torch.nn.Module):
 
-    def __init__(self, d):
+    def __init__(self, d_in, d_out):
         super(FeedForwardLayer, self).__init__()
-        self.W = torch.nn.Linear(d, d)
+        self.W = torch.nn.Linear(d_in, d_out)
         self.act = torch.nn.ReLU()
 
     def forward(self, X):
@@ -84,12 +108,11 @@ class LayerNorm(torch.nn.Module):
 
 def main():
 
-    dim = 5 
-    x = torch.rand((3, dim))
+    dim = 512 
+    x = torch.rand((5, dim))
 
-    transformer = TransformerBlock(dim)
-    y = transformer.forward(x)
-
+    layer = MultiHeadAttentionLayer(512, 8)
+    y = layer.forward(x)
 
 
 if __name__ == '__main__':
