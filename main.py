@@ -77,7 +77,7 @@ class SelfAttentionLayer(torch.nn.Module):
         V = self.W_v(X)
 
         QK = torch.einsum('ijk,ilk->ijl', Q, K) / self.sd
-        sQK = F.softmax(QK, dim=2)
+        sQK = torch.tril(F.softmax(QK, dim=2))
         out = torch.einsum('ijk,ikl->ijl', sQK, V)
         return out
 
@@ -114,10 +114,10 @@ def main():
     n_layers = 6
     n_heads = 8
     dim = 512 
-    x = torch.rand((batch_size, seq_length, dim))
 
-    layer = Decoder(n_layers, dim, n_heads)
-    y = layer.forward(x)
+    x = torch.rand((batch_size, seq_length, dim))
+    model = Decoder(n_layers, dim, n_heads)
+    y = model.forward(x)
 
 
 if __name__ == '__main__':
