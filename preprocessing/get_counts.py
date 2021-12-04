@@ -1,20 +1,27 @@
+"""
+Script to get vocabulary counts from aclImdb dataset
+"""
 import os
 
 from spacy.tokenizer import Tokenizer
 from spacy.lang.en import English
 from tqdm import tqdm
-
-
-inpath = '/home/akshat/Data/aclImdb'
-outpath = './data'
+import argparse
 
 
 def main():
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-i', '--inpath', required=True)
+    parser.add_argument('-o', '--outpath', required=True)
+    args = parser.parse_args()
+
+    inpath = args.inpath
+    outpath = args.outpath
+
     datasets = ['test', 'train']
     valences = ['neg', 'pos']
     counts = {}
-    lines = []
 
     tokenizer = Tokenizer(English().vocab)
 
@@ -34,13 +41,6 @@ def main():
 
                     else:
                         counts[token.text] = 1
-
-                lines.append(text)
-
-    # Store all reviews in single text file
-    with open(f'{outpath}/reviews.txt', 'w') as outfile:
-        for line in tqdm(lines, desc='Writing reviews'):
-            outfile.write(f'{line}\n')
 
     # Sort vocabulary by frequency and store
     counts = sorted(counts.items(), key=lambda x: x[1], reverse=True)

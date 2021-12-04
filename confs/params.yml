@@ -1,0 +1,12 @@
+dataset:
+    dpath: "/home/akshat/Programs/Decoders/data/data.txt"
+    vpath: "/home/akshat/Programs/Decoders/data/counts.txt"
+    size: 20000
+
+embedding:
+    dim: 512 
+
+model:
+    n_layers: 6
+    dim: 512
+    n_heads: 8
