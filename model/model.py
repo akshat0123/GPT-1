@@ -9,36 +9,41 @@ import torch
 class Embedding(torch.nn.Module):
 
 
-    def __init__(self, vocab, dimensions):
+    def __init__(self, size, dim):
+
         super(Embedding, self).__init__()
-        self.vmap = { vocab[i]: i for i in range(len(vocab)) }
         self.embeddings = torch.rand(
-            size=(len(vocab), dimensions), 
-            requires_grad=True
+            requires_grad=True,
+            size=(size, dim)
         )
+        self.dim = dim
 
 
-    def forward(self, tokens):
-        idxs = torch.Tensor([self.vmap[token] for token in tokens])
-        idxs = idxs.type(torch.LongTensor)
-        return self.embeddings[idxs]
+    def forward(self, batch):
+
+        return self.embeddings[batch]
 
 
 class Decoder(torch.nn.Module):
 
 
-    def __init__(self, n_layers, dim, n_heads):
+    def __init__(self, n_layers, n_heads, d_in, d_out):
+
         super(Decoder, self).__init__()
 
         self.blocks = [
-            TransformerBlock(dim, n_heads) for i in range(n_layers)
+            TransformerBlock(d_in, n_heads) for i in range(n_layers)
         ]
+
+        self.linear = torch.nn.Linear(d_in, d_out)
 
 
     def forward(self, X):
         
         for block in self.blocks:
             X = block(X)
+
+        X = F.softmax(self.linear(X), dim=2)
 
         return X
 
@@ -47,6 +52,7 @@ class TransformerBlock(torch.nn.Module):
 
 
     def __init__(self, d, h):
+
         super(TransformerBlock, self).__init__()
         self.attn = MultiHeadAttentionLayer(d, h)
         self.ffn = FeedForwardLayer(d, d)
@@ -54,6 +60,7 @@ class TransformerBlock(torch.nn.Module):
 
 
     def forward(self, X):
+
         X = self.norm(X + self.attn(X))
         X = self.norm(X + self.ffn(X))
         return X
@@ -63,6 +70,7 @@ class MultiHeadAttentionLayer(torch.nn.Module):
 
     
     def __init__(self, d, h):
+
         super(MultiHeadAttentionLayer, self).__init__()
 
         self.heads = [
@@ -75,6 +83,7 @@ class MultiHeadAttentionLayer(torch.nn.Module):
         self.d = d
 
     def forward(self, X):
+
         Z = []
         for i in range(self.h):
             Z.append(self.heads[i](X))
@@ -87,6 +96,7 @@ class SelfAttentionLayer(torch.nn.Module):
 
 
     def __init__(self, d_in, d_out):
+
         super(SelfAttentionLayer, self).__init__()
         self.W_q = torch.nn.Linear(d_in, d_out)
         self.W_k = torch.nn.Linear(d_in, d_out)
@@ -95,6 +105,7 @@ class SelfAttentionLayer(torch.nn.Module):
 
 
     def forward(self, X):
+
         Q = self.W_q(X)
         K = self.W_k(X)
         V = self.W_v(X)
@@ -109,11 +120,13 @@ class FeedForwardLayer(torch.nn.Module):
 
 
     def __init__(self, d_in, d_out):
+
         super(FeedForwardLayer, self).__init__()
         self.W = torch.nn.Linear(d_in, d_out)
         self.act = torch.nn.ReLU()
 
     def forward(self, X):
+
         X = self.W(X)
         X = self.act(X)
         return X
@@ -123,10 +136,12 @@ class LayerNorm(torch.nn.Module):
 
 
     def __init__(self):
+
         super(LayerNorm, self).__init__()
 
 
     def forward(self, X):
+
         mu = torch.mean(X, dim=2)[:, :, None]
         sigma = torch.mean((X-mu)**2, dim=2)[:, :, None]
         return (X - mu) / sigma

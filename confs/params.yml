@@ -1,12 +1,19 @@
 dataset:
-    dpath: "/home/akshat/Programs/Decoders/data/data.txt"
     vpath: "/home/akshat/Programs/Decoders/data/counts.txt"
+    dpath: "/home/akshat/Programs/Decoders/data/data.txt"
     size: 20000
+    limit: 128
 
 embedding:
-    dim: 512 
+    dim: 384
 
 model:
-    n_layers: 6
-    dim: 512
-    n_heads: 8
+    n_layers: 6 
+    n_heads: 6
+    dim: 384 
+
+train:
+    base_lr: 0.0001
+    batch_size: 32
+    max_lr: 0.01
+    epochs: 1
