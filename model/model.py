@@ -43,7 +43,7 @@ class Decoder(torch.nn.Module):
         for block in self.blocks:
             X = block(X)
 
-        X = F.softmax(self.linear(X), dim=2)
+        X = F.softmax(self.linear(X), dim=2)[:, -1, :]
 
         return X
 

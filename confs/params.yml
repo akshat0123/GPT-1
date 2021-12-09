@@ -1,6 +1,6 @@
 dataset:
     vpath: "/home/akshat/Programs/Decoders/data/counts.txt"
-    dpath: "/home/akshat/Programs/Decoders/data/data.txt"
+    dpath: "/home/akshat/Programs/Decoders/data/small.txt"
     size: 20000
     limit: 128
 
@@ -17,3 +17,5 @@ train:
     batch_size: 32
     max_lr: 0.01
     epochs: 1
+
+checkpoint: "/home/akshat/Programs/Decoders/confs/checkpoint.pt"
