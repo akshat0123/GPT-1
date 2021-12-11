@@ -1,86 +1,56 @@
-import yaml, os
+from functools import partial
+import yaml
 
 from torch.utils.data import DataLoader
 from tqdm import trange, tqdm
 import torch
 
 from model.model import Embedding, Decoder
-from model.dataset import ReviewDataset
+from model.dataset import BooksCorpus
+
+
+configpath = 'confs/params.yml'
 
 
 def main():
 
-    with open('confs/params.yml', 'r') as infile:
-        params = yaml.load(infile, Loader=yaml.Loader)
+    confs = yaml.load(open(configpath, 'r'), Loader=yaml.SafeLoader)
 
-    dataset = ReviewDataset(
-        dpath=params['dataset']['dpath'],
-        vpath=params['dataset']['vpath'],
-        limit=params['dataset']['limit'],
-        vsize=params['dataset']['size']
-    )
-
+    dataset = BooksCorpus(**confs['dataset'])
     loader = DataLoader(
-        dataset=dataset, 
-        batch_size=params['train']['batch_size'],
+        batch_size=confs['loader']['batch_size'],
+        dataset=dataset,
+        drop_last=True,
         shuffle=True
     )
 
-    embedding = Embedding(
-        size=params['dataset']['size'] + 3,
-        dim=params['embedding']['dim']
-    )
-
-    decoder = Decoder(
-        n_layers=params['model']['n_layers'],
-        n_heads=params['model']['n_heads'],
-        d_out=params['dataset']['size']+3,
-        d_in=params['model']['dim']
-    )
+    embedding = Embedding(**confs['embedding'])
+    decoder = Decoder(**confs['decoder'])
 
     optimizer = torch.optim.SGD(
-        torch.nn.ModuleList([embedding, decoder]).parameters(), 
-        lr=params['train']['max_lr']
+        torch.nn.ModuleList([embedding, decoder]).parameters(),
+        **confs['optimizer']
     )
-
     scheduler = torch.optim.lr_scheduler.CyclicLR(
-        base_lr=params['train']['base_lr'],
-        max_lr=params['train']['max_lr'],
-        optimizer=optimizer
+        optimizer=optimizer,
+        **confs['scheduler']
     )
 
     criterion = torch.nn.CrossEntropyLoss()
 
-    checkpoint = params['checkpoint']
-    if os.path.isfile(checkpoint):
-        state = torch.load(checkpoint)
-        decoder.load_state_dict(state['model'])
-        optimizer.load_state_dict(state['optimizer'])
-        scheduler.load_state_dict(state['scheduler'])
-        start_epoch = state['epoch']
-        loss = state['loss']
+    for epoch in range(confs['epochs']):
+        for x, y in tqdm(loader):
 
-    else:
-        start_epoch = 0
+            optimizer.zero_grad()
+            embedding.train()
+            decoder.train()
 
-    if start_epoch + 1 < params['train']['epochs']:
-        for epoch in trange(start_epoch+1, params['train']['epochs']):
-            for x, y in tqdm(loader):
-                optimizer.zero_grad()
-                pred = decoder(embedding(x))
-                loss = criterion(pred, y)
-                loss.backward()
-                optimizer.step()
-                scheduler.step()
+            pred = decoder(embedding(x))
+            loss = criterion(pred, y)
+            loss.backward()
+            optimizer.step()
 
-            torch.save({
-                'optimizer': optimizer.state_dict(),
-                'scheduler': scheduler.state_dict(),
-                'model': model.state_dict(),
-                'epoch': epoch,
-                'loss': loss
-            }, checkpoint)
-
+        scheduler.step()
 
 
 if __name__ == '__main__':

@@ -1,21 +1,29 @@
 dataset:
-    vpath: "/home/akshat/Programs/Decoders/data/counts.txt"
-    dpath: "/home/akshat/Programs/Decoders/data/small.txt"
-    size: 20000
-    limit: 128
+    countpath: "/home/akshat/Programs/Decoders/data/counts.txt"
+    datapath: "/home/akshat/Programs/Decoders/data/data.txt"
+    vocab: 20000
+    window: 128
+
+loader:
+    batch_size: 32
 
 embedding:
+    size: 20000
     dim: 384
 
-model:
+decoder:
+    d_out: 20000
     n_layers: 6 
     n_heads: 6
-    dim: 384 
+    d_in: 384 
 
-train:
+optimizer:
+    lr: 0.01
+
+scheduler:
     base_lr: 0.0001
-    batch_size: 32
     max_lr: 0.01
-    epochs: 1
+
+epochs: 1
 
 checkpoint: "/home/akshat/Programs/Decoders/confs/checkpoint.pt"

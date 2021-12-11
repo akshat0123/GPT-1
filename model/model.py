@@ -1,7 +1,6 @@
 """
 File containing class for transformer-based decoder model
 """
-
 import torch.nn.functional as F
 import torch
 
@@ -10,7 +9,6 @@ class Embedding(torch.nn.Module):
 
 
     def __init__(self, size, dim):
-
         super(Embedding, self).__init__()
         self.embeddings = torch.rand(
             requires_grad=True,
