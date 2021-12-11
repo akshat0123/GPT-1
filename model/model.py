@@ -8,7 +8,17 @@ import torch
 class Embedding(torch.nn.Module):
 
 
-    def __init__(self, size, dim):
+    def __init__(self, size: int, dim: int) -> 'Embedding':
+        """ Implementation of word embeddings
+
+        Args:
+            size: size of vocabulary
+            dim: dimension size of embeddings 
+
+        Returns:
+            (Embedding): word embeddings instance
+        """
+
         super(Embedding, self).__init__()
         self.embeddings = torch.rand(
             requires_grad=True,
@@ -17,7 +27,16 @@ class Embedding(torch.nn.Module):
         self.dim = dim
 
 
-    def forward(self, batch):
+    def forward(self, batch: torch.Tensor) -> torch.Tensor:
+        """ Returns word embeddings for batch of indices
+
+        Args:
+            batch: batch of word indices
+
+        Returns:
+            (torch.Tensor): word embeddings corresponding to provided indices
+
+        """
 
         return self.embeddings[batch]
 
@@ -25,7 +44,19 @@ class Embedding(torch.nn.Module):
 class Decoder(torch.nn.Module):
 
 
-    def __init__(self, n_layers, n_heads, d_in, d_out):
+    def __init__(self, n_layers: int, n_heads: int, d_in: int, 
+                 d_out: int) -> 'Decoder':
+        """ Decoder implementation (as described in GPT paper)
+
+        Args:
+            n_layers: number of layers
+            n_heads: number of attention heads per transformer block
+            d_in: input dimensions
+            d_out: hidden units
+
+        Returns:
+            (Decoder): transformer based decoder module
+        """
 
         super(Decoder, self).__init__()
 
@@ -36,7 +67,15 @@ class Decoder(torch.nn.Module):
         self.linear = torch.nn.Linear(d_in, d_out)
 
 
-    def forward(self, X):
+    def forward(self, X: torch.Tensor) -> torch.Tensor:
+        """ Forward pass
+
+        Args:
+            X: input tensor
+
+        Returns:
+            (torch.Tensor): output of layer
+        """
         
         for block in self.blocks:
             X = block(X)
@@ -49,15 +88,33 @@ class Decoder(torch.nn.Module):
 class TransformerBlock(torch.nn.Module):
 
 
-    def __init__(self, d, h):
+    def __init__(self, d: int, h:  int) -> 'TransformerBlock':
+        """ Single transformer block implementation
+
+        Args:
+            d: input dimensions
+            h: number of heads
+
+        Returns:
+            (TransformerBlock): transformer block
+        """
 
         super(TransformerBlock, self).__init__()
+
         self.attn = MultiHeadAttentionLayer(d, h)
         self.ffn = FeedForwardLayer(d, d)
         self.norm = LayerNorm()
 
 
-    def forward(self, X):
+    def forward(self, X: torch.Tensor) -> torch.Tensor:
+        """ Forward pass
+
+        Args:
+            X: input tensor
+
+        Returns:
+            (torch.Tensor): output of layer
+        """
 
         X = self.norm(X + self.attn(X))
         X = self.norm(X + self.ffn(X))
@@ -67,7 +124,16 @@ class TransformerBlock(torch.nn.Module):
 class MultiHeadAttentionLayer(torch.nn.Module):
 
     
-    def __init__(self, d, h):
+    def __init__(self, d: int, h: int) -> 'MultiHeadAttentionLayer':
+        """ Multi-headed self-attention layer implementation
+
+        Args:
+            d: input dimensions
+            h: number of heads
+
+        Returns:
+            (MultiHeadAttentionLayer): multi-headed self-attention layer
+        """
 
         super(MultiHeadAttentionLayer, self).__init__()
 
@@ -80,7 +146,16 @@ class MultiHeadAttentionLayer(torch.nn.Module):
         self.h = h
         self.d = d
 
-    def forward(self, X):
+
+    def forward(self, X: torch.Tensor) -> torch.Tensor:
+        """ Forward pass
+
+        Args:
+            X: input tensor
+
+        Returns:
+            (torch.Tensor): output of layer
+        """
 
         Z = []
         for i in range(self.h):
@@ -93,16 +168,34 @@ class MultiHeadAttentionLayer(torch.nn.Module):
 class SelfAttentionLayer(torch.nn.Module):
 
 
-    def __init__(self, d_in, d_out):
+    def __init__(self, d_in: int, d_out: int) -> 'SelfAttentionLayer':
+        """ Single-head self-attention layer implementation
+
+        Args:
+            d_in: input dimensions
+            d_out: hidden units
+
+        Returns:
+            (SelfAttentionLayer): self-attention layer
+        """
 
         super(SelfAttentionLayer, self).__init__()
+
         self.W_q = torch.nn.Linear(d_in, d_out)
         self.W_k = torch.nn.Linear(d_in, d_out)
         self.W_v = torch.nn.Linear(d_in, d_out)
         self.sd = torch.sqrt(torch.Tensor([d_out]))
 
 
-    def forward(self, X):
+    def forward(self, X: torch.Tensor) -> torch.Tensor:
+        """ Forward pass
+
+        Args:
+            X: input tensor
+
+        Returns:
+            (torch.Tensor): output of layer
+        """
 
         Q = self.W_q(X)
         K = self.W_k(X)
@@ -117,13 +210,32 @@ class SelfAttentionLayer(torch.nn.Module):
 class FeedForwardLayer(torch.nn.Module):
 
 
-    def __init__(self, d_in, d_out):
+    def __init__(self, d_in: int, d_out: int) -> 'FeedForwardLayer':
+        """ Feed forward neural network layer implementation
+
+        Args:
+            d_in: input dimensions
+            d_out: hidden units
+
+        Returns:
+            (FeedForwardLayer): feed forward layer
+        """
 
         super(FeedForwardLayer, self).__init__()
+
         self.W = torch.nn.Linear(d_in, d_out)
         self.act = torch.nn.ReLU()
 
-    def forward(self, X):
+
+    def forward(self, X: torch.Tensor) -> torch.Tensor:
+        """ Forward pass
+
+        Args:
+            X: input tensor
+
+        Returns:
+            (torch.Tensor): output of layer
+        """
 
         X = self.W(X)
         X = self.act(X)
@@ -134,11 +246,21 @@ class LayerNorm(torch.nn.Module):
 
 
     def __init__(self):
+        """  Layer normalization implementation
+        """
 
         super(LayerNorm, self).__init__()
 
 
-    def forward(self, X):
+    def forward(self, X: torch.Tensor) -> torch.Tensor:
+        """ Normalize layer of batch of inputs
+
+        Args:
+            X: input batch
+
+        Returns:
+            (torch.Tensor): layer normalized input             
+        """
 
         mu = torch.mean(X, dim=2)[:, :, None]
         sigma = torch.mean((X-mu)**2, dim=2)[:, :, None]

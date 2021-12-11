@@ -12,7 +12,6 @@ from spacy.lang.en import English
 from tqdm import tqdm
 
 
-
 def main():
 
     parser = argparse.ArgumentParser()
