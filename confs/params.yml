@@ -1,21 +1,21 @@
 dataset:
-    countpath: "/home/ubuntu/Programs/Decoders/data/counts.txt"
-    datapath: "/home/ubuntu/Programs/Decoders/data/data.txt"
-    linecount: 9756039
-    vocab: 100000
+    countpath: "/home/akshat/Programs/Decoders/data/counts.txt"
+    datapath: "/home/akshat/Programs/Decoders/data/data.txt"
+    linecount: 53252
+    vocab: 20000
     window: 128
 
 loader:
     batch_size: 32
 
 embedding:
-    device: "cuda:0"
-    size: 100000
+    device: "cpu"
+    size: 20000
     dim: 384
 
 decoder:
-    device: "cuda:0"
-    d_out: 100000
+    device: "cpu"
+    d_out: 20000
     n_layers: 6 
     n_heads: 6
     d_in: 384 

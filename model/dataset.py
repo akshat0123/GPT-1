@@ -44,7 +44,17 @@ def get_vmap_from_countfile(path: str, limit: int, unknown: str,
     return vmap
 
 
-def sopen(filepath, linecount):
+def sopen(filepath: str, linecount: int) -> List[str]:
+    """ Takes in file and returns line by line, providing a progress bar as
+        lines are loaded
+
+    Args:
+        filepath: path of file to read
+        linecount: length of file
+        
+    Returns:
+        (List[str]): list of lines
+    """
 
     lines = []
     progress = tqdm(total=linecount)
