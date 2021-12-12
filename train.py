@@ -41,6 +41,9 @@ def main():
     for epoch in range(confs['epochs']):
         for x, y in tqdm(loader):
 
+            x = x.to(device=decoder.device)
+            y = y.to(device=decoder.device)
+
             optimizer.zero_grad()
             embedding.train()
             decoder.train()

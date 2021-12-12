@@ -6,6 +6,7 @@ from typing import Dict
 from spacy.tokenizer import Tokenizer
 from torch.utils.data import Dataset
 from spacy.lang.en import English
+from tqdm import trange, tqdm
 import torch
 
 
@@ -41,6 +42,21 @@ def get_vmap_from_countfile(path: str, limit: int, unknown: str,
     vmap[unknown] = count
     vmap[pad] = count+1
     return vmap
+
+
+def sopen(filepath, linecount):
+
+    lines = []
+    progress = tqdm(total=linecount)
+    with open(filepath, 'r') as infile:
+
+        line = infile.readline()
+        while line:
+            lines.append(line)
+            line = infile.readline()
+            progress.update(1)
+
+    return lines
         
 
 class BooksCorpus(Dataset):
@@ -48,7 +64,7 @@ class BooksCorpus(Dataset):
 
     def __init__(self, datapath: str, countpath: str, window: int, 
                  vocab: int=float('inf'), unknown: str='<UNK>', 
-                 pad: str='<PAD>') -> 'BooksCorpus':
+                 pad: str='<PAD>', linecount: int=None) -> 'BooksCorpus':
         """ Dataset class for BooksCorpus dataset
 
         Args:
@@ -58,6 +74,8 @@ class BooksCorpus(Dataset):
             vocab: vocabulary size
             unknown: token to use for unknown tokens
             pad: token to use for padding
+            linecount: number of lines in dataset (optional parameter that
+                       provides a loading bar if provided)
 
         Returns:
             (BooksCorpus): BooksCorpus dataset instance
@@ -67,10 +85,15 @@ class BooksCorpus(Dataset):
 
         self.vmap = get_vmap_from_countfile(countpath, vocab, unknown, pad)
         self.tokenizer = Tokenizer(English().vocab)
-        self.data = open(datapath, 'r').readlines()
         self.unknown = unknown
         self.window = window
         self.pad = pad
+
+        if linecount is None:
+            self.data = open(datapath, 'r').readlines()
+
+        else:
+            self.data = sopen(datapath, linecount)
 
 
     def __len__(self) -> int:
