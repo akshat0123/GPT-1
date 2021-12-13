@@ -1,7 +1,7 @@
 """
 Dataset class for BooksCorpus movie review dataset
 """
-from typing import Dict
+from typing import Dict, List
 
 from spacy.tokenizer import Tokenizer
 from torch.utils.data import Dataset
