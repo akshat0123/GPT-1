@@ -1,6 +1,7 @@
 from functools import partial
 import yaml
 
+from torch.utils.tensorboard import SummaryWriter
 from torch.nn import ModuleList, CrossEntropyLoss 
 from torch.optim.lr_scheduler import CyclicLR
 from torch.utils.data import random_split
@@ -18,7 +19,7 @@ configpath = 'confs/params.yml'
 
 def train_epoch(embedding: Embedding, decoder: Decoder, loader: DataLoader,
                 criterion: CrossEntropyLoss, optimizer: SGD, 
-                scheduler: CyclicLR) -> float:
+                scheduler: CyclicLR) -> (float, float):
     """ Run one training epoch
 
     Args:
@@ -31,12 +32,15 @@ def train_epoch(embedding: Embedding, decoder: Decoder, loader: DataLoader,
 
     Returns:
         (float): average loss across epoch
+        (float): average error across epoch
     """
 
     total_loss = 0.0
+    total_err = 0.0
     count = 0
 
-    for x, y in tqdm(loader):
+    progress = tqdm(total=len(loader), desc='Train Loss: | Train Err: ')
+    for x, y in loader:
 
         optimizer.zero_grad()
 
@@ -48,15 +52,22 @@ def train_epoch(embedding: Embedding, decoder: Decoder, loader: DataLoader,
         loss.backward()
         optimizer.step()
 
+        yhat = torch.argmax(pred, dim=1)
+        total_err += torch.sum(yhat!=y).item()
         total_loss += loss.item()
         count += x.shape[0]
 
+        desc = f'Train Loss: {total_loss/count:.4f} | Train Err: {total_err/count:.4f}'
+        progress.set_description(desc)
+        progress.update(1)
+
     scheduler.step()
-    return total_loss / count
+
+    return total_loss/count, total_err/count
 
 
 def val_epoch(embedding: Embedding, decoder: Decoder, loader: DataLoader,
-              criterion: CrossEntropyLoss) -> float:
+              criterion: CrossEntropyLoss) -> (float, float):
     """ Run one validation epoch
 
     Args:
@@ -67,12 +78,15 @@ def val_epoch(embedding: Embedding, decoder: Decoder, loader: DataLoader,
 
     Returns:
         (float): average loss across epoch
+        (float): average error across epoch
     """
 
     total_loss = 0.0
+    total_err = 0.0
     count = 0
 
-    for x, y in tqdm(loader):
+    progress = tqdm(total=len(loader), desc='Val Loss: | Val Err: ')
+    for x, y in loader:
 
         x = x.to(device=decoder.device)
         y = y.to(device=decoder.device)
@@ -80,10 +94,16 @@ def val_epoch(embedding: Embedding, decoder: Decoder, loader: DataLoader,
         pred = decoder(embedding(x))
         loss = criterion(pred, y)
 
+        yhat = torch.argmax(pred, dim=1)
+        total_err += torch.sum(yhat!=y).item()
         total_loss += loss.item()
         count += x.shape[0]
 
-    return total_loss / count
+        desc = f'Val Loss: {total_loss/count:.4f} | Val Err: {total_err/count:.4f}'
+        progress.set_description(desc)
+        progress.update(1)
+
+    return total_loss/count, total_err/count
 
 
 def main():
@@ -114,12 +134,19 @@ def main():
     scheduler = CyclicLR(optimizer=optimizer, **confs['scheduler'])
     criterion = CrossEntropyLoss()
 
+    writer = SummaryWriter()
+
     # Train model
     for epoch in range(confs['epochs']):
 
-        train_loss = train_epoch(embedding, decoder, tloader, criterion,
-                                 optimizer, scheduler)
-        val_loss = val_epoch(embedding, decoder, dloader, criterion)
+        tloss, terr = train_epoch(embedding, decoder, tloader, criterion,
+                                  optimizer, scheduler)
+        vloss, verr = val_epoch(embedding, decoder, dloader, criterion)
+
+        writer.add_scalar('Train Loss', tloss, epoch)
+        writer.add_scalar('Val Loss', vloss, epoch)
+        writer.add_scalar('Train Err', terr, epoch)
+        writer.add_scalar('Val Err', verr, epoch)
 
 
 

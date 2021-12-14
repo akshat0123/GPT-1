@@ -1,32 +1,32 @@
 dataset:
     countpath: "/home/akshat/Programs/Decoders/data/counts.txt"
     datapath: "/home/akshat/Programs/Decoders/data/data.txt"
-    linecount: 53252
-    vocab: 20000
-    window: 128
+    linecount: 22780
+    vocab: 1000
+    window: 32
 
 loader:
-    batch_size: 32
+    batch_size: 128
 
 embedding:
     device: "cpu"
-    size: 20000
-    dim: 384
+    size: 1000
+    dim: 64 
 
 decoder:
     device: "cpu"
-    d_out: 20000
-    n_layers: 6 
-    n_heads: 6
-    d_in: 384 
+    d_out: 1000 
+    n_layers: 2 
+    n_heads: 2
+    d_in: 64
 
 optimizer:
     lr: 0.01
 
 scheduler:
-    base_lr: 0.0001
-    max_lr: 0.01
+    base_lr: 0.00001
+    max_lr: 0.001
 
-epochs: 1
+epochs: 2
 
 checkpoint: "/home/akshat/Programs/Decoders/confs/checkpoint.pt"
