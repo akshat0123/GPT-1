@@ -8,11 +8,6 @@ dataset:
 loader:
     batch_size: 128
 
-embedding:
-    device: "cpu"
-    size: 1000
-    dim: 64 
-
 decoder:
     device: "cpu"
     d_out: 1000 

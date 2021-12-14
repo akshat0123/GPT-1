@@ -5,6 +5,56 @@ import torch.nn.functional as F
 import torch
 
 
+class Decoder(torch.nn.Module):
+
+
+    def __init__(self, n_layers: int, n_heads: int, d_in: int, 
+                 d_out: int, device: str='cpu') -> 'Decoder':
+        """ Decoder implementation (as described in GPT paper)
+
+        Args:
+            n_layers: number of layers
+            n_heads: number of attention heads per transformer block
+            d_in: input dimensions
+            d_out: hidden units
+            device: device to keep instance on
+
+        Returns:
+            (Decoder): transformer based decoder module
+        """
+
+        super(Decoder, self).__init__()
+
+        self.embeddings = Embedding(d_out, d_in, device)
+
+        self.blocks = [
+            TransformerBlock(d_in, n_heads, device) for i in range(n_layers)
+        ]
+
+        self.linear = torch.nn.Linear(d_in, d_out).to(device=device)
+        self.device = device
+
+
+    def forward(self, X: torch.Tensor) -> torch.Tensor:
+        """ Forward pass
+
+        Args:
+            X: input tensor
+
+        Returns:
+            (torch.Tensor): output of layer
+        """
+
+        X = self.embeddings(X)
+        
+        for block in self.blocks:
+            X = block(X)
+
+        X = F.softmax(self.linear(X), dim=2)[:, -1, :]
+
+        return X
+
+
 class Embedding(torch.nn.Module):
 
 
@@ -28,6 +78,8 @@ class Embedding(torch.nn.Module):
         self.device = device
         self.dim = dim
 
+        print('Embeddings initialized')
+
 
     def forward(self, batch: torch.Tensor) -> torch.Tensor:
         """ Returns word embeddings for batch of indices
@@ -41,52 +93,6 @@ class Embedding(torch.nn.Module):
         """
 
         return self.embeddings[batch]
-
-
-class Decoder(torch.nn.Module):
-
-
-    def __init__(self, n_layers: int, n_heads: int, d_in: int, 
-                 d_out: int, device: str='cpu') -> 'Decoder':
-        """ Decoder implementation (as described in GPT paper)
-
-        Args:
-            n_layers: number of layers
-            n_heads: number of attention heads per transformer block
-            d_in: input dimensions
-            d_out: hidden units
-            device: device to keep instance on
-
-        Returns:
-            (Decoder): transformer based decoder module
-        """
-
-        super(Decoder, self).__init__()
-
-        self.blocks = [
-            TransformerBlock(d_in, n_heads, device) for i in range(n_layers)
-        ]
-
-        self.linear = torch.nn.Linear(d_in, d_out).to(device=device)
-        self.device = device
-
-
-    def forward(self, X: torch.Tensor) -> torch.Tensor:
-        """ Forward pass
-
-        Args:
-            X: input tensor
-
-        Returns:
-            (torch.Tensor): output of layer
-        """
-        
-        for block in self.blocks:
-            X = block(X)
-
-        X = F.softmax(self.linear(X), dim=2)[:, -1, :]
-
-        return X
 
 
 class TransformerBlock(torch.nn.Module):

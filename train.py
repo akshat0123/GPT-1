@@ -2,28 +2,27 @@ from functools import partial
 import yaml
 
 from torch.utils.tensorboard import SummaryWriter
-from torch.nn import ModuleList, CrossEntropyLoss 
 from torch.optim.lr_scheduler import CyclicLR
 from torch.utils.data import random_split
 from torch.utils.data import DataLoader
+from torch.nn import CrossEntropyLoss 
 from tqdm import trange, tqdm
 from torch.optim import SGD
 import torch
 
-from model.model import Embedding, Decoder
 from model.dataset import BooksCorpus
+from model.model import Decoder
 
 
 configpath = 'confs/params.yml'
 
 
-def train_epoch(embedding: Embedding, decoder: Decoder, loader: DataLoader,
+def train_epoch(decoder: Decoder, loader: DataLoader, 
                 criterion: CrossEntropyLoss, optimizer: SGD, 
                 scheduler: CyclicLR) -> (float, float):
     """ Run one training epoch
 
     Args:
-        embedding: word embedding module
         decoder: transformer-based decoder
         loader: dataset batch loader
         criterion: loss function
@@ -47,7 +46,7 @@ def train_epoch(embedding: Embedding, decoder: Decoder, loader: DataLoader,
         x = x.to(device=decoder.device)
         y = y.to(device=decoder.device)
 
-        pred = decoder(embedding(x))
+        pred = decoder(x)
         loss = criterion(pred, y)
         loss.backward()
         optimizer.step()
@@ -66,12 +65,11 @@ def train_epoch(embedding: Embedding, decoder: Decoder, loader: DataLoader,
     return total_loss/count, total_err/count
 
 
-def val_epoch(embedding: Embedding, decoder: Decoder, loader: DataLoader,
+def val_epoch(decoder: Decoder, loader: DataLoader, 
               criterion: CrossEntropyLoss) -> (float, float):
     """ Run one validation epoch
 
     Args:
-        embedding: word embedding module
         decoder: transformer-based decoder
         loader: dataset batch loader
         criterion: loss function
@@ -91,7 +89,7 @@ def val_epoch(embedding: Embedding, decoder: Decoder, loader: DataLoader,
         x = x.to(device=decoder.device)
         y = y.to(device=decoder.device)
 
-        pred = decoder(embedding(x))
+        pred = decoder(x)
         loss = criterion(pred, y)
 
         yhat = torch.argmax(pred, dim=1)
@@ -125,12 +123,10 @@ def main():
                          drop_last=True, shuffle=True)
 
     # Initialize model        
-    embedding = Embedding(**confs['embedding'])
     decoder = Decoder(**confs['decoder'])
 
     # Initialize optimizer, scheduler, and loss
-    optimizer = SGD(ModuleList([embedding, decoder]).parameters(),
-                    **confs['optimizer'])
+    optimizer = SGD(decoder.parameters(), **confs['optimizer'])
     scheduler = CyclicLR(optimizer=optimizer, **confs['scheduler'])
     criterion = CrossEntropyLoss()
 
@@ -139,9 +135,9 @@ def main():
     # Train model
     for epoch in range(confs['epochs']):
 
-        tloss, terr = train_epoch(embedding, decoder, tloader, criterion,
-                                  optimizer, scheduler)
-        vloss, verr = val_epoch(embedding, decoder, dloader, criterion)
+        tloss, terr = train_epoch(decoder, tloader, criterion, optimizer,
+                                  scheduler)
+        vloss, verr = val_epoch(decoder, dloader, criterion)
 
         writer.add_scalar('Train Loss', tloss, epoch)
         writer.add_scalar('Val Loss', vloss, epoch)
