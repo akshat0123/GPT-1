@@ -44,6 +44,8 @@ def train_epoch(decoder: Decoder, loader: DataLoader,
         optimizer.zero_grad()
 
         x = x.to(device=decoder.device)
+        x = torch.nn.functional.one_hot(x, 1000)
+        x = x.type(torch.FloatTensor)
         y = y.to(device=decoder.device)
 
         pred = decoder(x)
@@ -87,6 +89,8 @@ def val_epoch(decoder: Decoder, loader: DataLoader,
     for x, y in loader:
 
         x = x.to(device=decoder.device)
+        x = torch.nn.functional.one_hot(x, 1000)
+        x = x.type(torch.FloatTensor)
         y = y.to(device=decoder.device)
 
         pred = decoder(x)
@@ -143,7 +147,6 @@ def main():
         writer.add_scalar('Val Loss', vloss, epoch)
         writer.add_scalar('Train Err', terr, epoch)
         writer.add_scalar('Val Err', verr, epoch)
-
 
 
 if __name__ == '__main__':

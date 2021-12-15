@@ -27,9 +27,9 @@ class Decoder(torch.nn.Module):
 
         self.embeddings = Embedding(d_out, d_in, device)
 
-        self.blocks = [
+        self.blocks = torch.nn.ModuleList([
             TransformerBlock(d_in, n_heads, device) for i in range(n_layers)
-        ]
+        ])
 
         self.linear = torch.nn.Linear(d_in, d_out).to(device=device)
         self.device = device
@@ -71,14 +71,9 @@ class Embedding(torch.nn.Module):
         """
 
         super(Embedding, self).__init__()
-        self.embeddings = torch.rand(
-            requires_grad=True,
-            size=(size, dim)
-        ).to(device=device)
+        self.embeddings = torch.nn.Linear(size, dim).to(device=device)
         self.device = device
         self.dim = dim
-
-        print('Embeddings initialized')
 
 
     def forward(self, batch: torch.Tensor) -> torch.Tensor:
@@ -92,7 +87,7 @@ class Embedding(torch.nn.Module):
 
         """
 
-        return self.embeddings[batch]
+        return self.embeddings(batch)
 
 
 class TransformerBlock(torch.nn.Module):
@@ -150,9 +145,9 @@ class MultiHeadAttentionLayer(torch.nn.Module):
 
         super(MultiHeadAttentionLayer, self).__init__()
 
-        self.heads = [
+        self.heads = torch.nn.ModuleList([
             SelfAttentionLayer(d, d//h, device) for i in range(h)
-        ]
+        ])
 
         self.W_o = torch.nn.Linear(d, d).to(device=device)
         self.device = device
