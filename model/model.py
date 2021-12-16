@@ -5,44 +5,6 @@ import torch.nn.functional as F
 import torch
 
 
-class Embedding(torch.nn.Module):
-
-
-    def __init__(self, size: int, dim: int, device: str='cpu') -> 'Embedding':
-        """ Implementation of word embeddings
-
-        Args:
-            size: size of vocabulary
-            dim: dimension size of embeddings 
-            device: device to keep instance on
-
-        Returns:
-            (Embedding): word embeddings instance
-        """
-
-        super(Embedding, self).__init__()
-        self.embeddings = torch.rand(
-            requires_grad=True,
-            size=(size, dim)
-        ).to(device=device)
-        self.device = device
-        self.dim = dim
-
-
-    def forward(self, batch: torch.Tensor) -> torch.Tensor:
-        """ Returns word embeddings for batch of indices
-
-        Args:
-            batch: batch of word indices
-
-        Returns:
-            (torch.Tensor): word embeddings corresponding to provided indices
-
-        """
-
-        return self.embeddings[batch]
-
-
 class Decoder(torch.nn.Module):
 
 
@@ -63,9 +25,11 @@ class Decoder(torch.nn.Module):
 
         super(Decoder, self).__init__()
 
-        self.blocks = [
+        self.embeddings = Embedding(d_out, d_in, device)
+
+        self.blocks = torch.nn.ModuleList([
             TransformerBlock(d_in, n_heads, device) for i in range(n_layers)
-        ]
+        ])
 
         self.linear = torch.nn.Linear(d_in, d_out).to(device=device)
         self.device = device
@@ -80,6 +44,8 @@ class Decoder(torch.nn.Module):
         Returns:
             (torch.Tensor): output of layer
         """
+
+        X = self.embeddings(X)
         
         for block in self.blocks:
             X = block(X)
@@ -87,6 +53,41 @@ class Decoder(torch.nn.Module):
         X = F.softmax(self.linear(X), dim=2)[:, -1, :]
 
         return X
+
+
+class Embedding(torch.nn.Module):
+
+
+    def __init__(self, size: int, dim: int, device: str='cpu') -> 'Embedding':
+        """ Implementation of word embeddings
+
+        Args:
+            size: size of vocabulary
+            dim: dimension size of embeddings 
+            device: device to keep instance on
+
+        Returns:
+            (Embedding): word embeddings instance
+        """
+
+        super(Embedding, self).__init__()
+        self.embeddings = torch.nn.Linear(size, dim).to(device=device)
+        self.device = device
+        self.dim = dim
+
+
+    def forward(self, batch: torch.Tensor) -> torch.Tensor:
+        """ Returns word embeddings for batch of indices
+
+        Args:
+            batch: batch of word indices
+
+        Returns:
+            (torch.Tensor): word embeddings corresponding to provided indices
+
+        """
+
+        return self.embeddings(batch)
 
 
 class TransformerBlock(torch.nn.Module):
@@ -144,9 +145,9 @@ class MultiHeadAttentionLayer(torch.nn.Module):
 
         super(MultiHeadAttentionLayer, self).__init__()
 
-        self.heads = [
+        self.heads = torch.nn.ModuleList([
             SelfAttentionLayer(d, d//h, device) for i in range(h)
-        ]
+        ])
 
         self.W_o = torch.nn.Linear(d, d).to(device=device)
         self.device = device
