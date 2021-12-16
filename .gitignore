@@ -3,3 +3,5 @@ data/*.txt
 **/*.pt
 runs/*
 !runs/.gitkeep
+checkpoints/*
+!checkpoints/.gitkeep

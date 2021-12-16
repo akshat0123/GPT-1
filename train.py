@@ -1,5 +1,5 @@
 from functools import partial
-import yaml
+import yaml, os
 
 from torch.utils.tensorboard import SummaryWriter
 from torch.optim.lr_scheduler import CyclicLR
@@ -127,26 +127,37 @@ def main():
                          drop_last=True, shuffle=True)
 
     # Initialize model        
-    decoder = Decoder(**confs['decoder'])
+    model = Decoder(**confs['decoder'])
 
     # Initialize optimizer, scheduler, and loss
-    optimizer = SGD(decoder.parameters(), **confs['optimizer'])
+    optimizer = SGD(model.parameters(), **confs['optimizer'])
     scheduler = CyclicLR(optimizer=optimizer, **confs['scheduler'])
     criterion = CrossEntropyLoss()
 
     writer = SummaryWriter()
 
     # Train model
+    min_vloss = float('inf')
     for epoch in range(confs['epochs']):
 
-        tloss, terr = train_epoch(decoder, tloader, criterion, optimizer,
+        tloss, terr = train_epoch(model, tloader, criterion, optimizer,
                                   scheduler)
-        vloss, verr = val_epoch(decoder, dloader, criterion)
+        vloss, verr = val_epoch(model, dloader, criterion)
 
         writer.add_scalar('Train Loss', tloss, epoch)
         writer.add_scalar('Val Loss', vloss, epoch)
         writer.add_scalar('Train Err', terr, epoch)
         writer.add_scalar('Val Err', verr, epoch)
+
+        checkpoint = { 'optimizer': optimizer.state_dict(), 
+                       'scheduler': scheduler.state_dict(), 
+                       'model': model.state_dict(), 'train_loss': tloss,
+                       'val_loss': vloss, 'train_err': terr, 'val_err': verr,
+                       'epoch': epoch }
+
+        if vloss < min_vloss:
+            torch.save(checkpoint, os.path.join(confs['checkpoint'], 'best.pt'))
+        torch.save(checkpoint, os.path.join(confs['checkpoint'], 'latest.pt'))
 
 
 if __name__ == '__main__':

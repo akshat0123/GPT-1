@@ -24,4 +24,4 @@ scheduler:
 
 epochs: 2
 
-checkpoint: "/home/akshat/Programs/Decoders/confs/checkpoint.pt"
+checkpoint: "/home/akshat/Programs/Decoders/checkpoints"

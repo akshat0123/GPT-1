@@ -57,7 +57,7 @@ def sopen(filepath: str, linecount: int) -> List[str]:
     """
 
     lines = []
-    progress = tqdm(total=linecount)
+    progress = tqdm(total=linecount, desc='Loading data')
     with open(filepath, 'r') as infile:
 
         line = infile.readline()
