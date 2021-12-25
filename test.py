@@ -13,6 +13,35 @@ from model.dataset import BooksCorpus
 configpath = 'confs/params.yml'
 
 
+class TransformerDecoder(torch.nn.Module):
+
+
+    def __init__(self, v, d, dk, n_heads, hidden, n_blocks):
+        super(TransformerDecoder, self).__init__()
+        self.embedding = Embedding(v, d)
+        self.blocks = torch.nn.ModuleList([
+            TransformerBlock(d, dk, n_heads, hidden) \
+            for i in range(n_blocks)
+        ])
+
+        self.linear = torch.nn.Linear(d, v)
+
+
+    def forward(self, X):
+
+        # Transform one-hot vectors into embeddings
+        X = self.embedding(X)
+
+        # Run through transformer blocks
+        for block in self.blocks:
+            X = block(X)
+
+        # Project to vocabulary space
+        X = torch.nn.functional.softmax(self.linear(X), dim=2)
+
+        return X
+
+
 class Embedding(torch.nn.Module):
 
 
@@ -25,22 +54,78 @@ class Embedding(torch.nn.Module):
         return self.embedding(x)
 
 
-class SelfAttentionLayer(torch.nn.Module):
+class TransformerBlock(torch.nn.Module):
 
 
-    def __init__(self, embedding_dim_in, embedding_dim_out, hidden_dim):
-        super(SelfAttentionLayer, self).__init__()
-        self.q = torch.nn.Linear(embedding_dim_in, embedding_dim_out)
-        self.k = torch.nn.Linear(embedding_dim_in, embedding_dim_out)
-        self.v = torch.nn.Linear(embedding_dim_in, embedding_dim_out)
-        self.dk = torch.sqrt(torch.Tensor([embedding_dim_out]))
+    def __init__(self, d, dk, n_heads, hidden):        
+        super(TransformerBlock, self).__init__()
+        self.attention = MultiHeadedAttentionLayer(d, dk, n_heads)
+        self.norm = LayerNorm()
+        self.ff1 = PositionWiseFFN(d, hidden, torch.nn.ReLU())
+        self.ff2 = PositionWiseFFN(hidden, d, torch.nn.Identity())
+
+    
+    def forward(self, X):
+
+        # Run through attention
+        A = self.attention(X)
+
+        # Normalization and residual connection
+        X = self.norm(X + A)
+
+        # Position-wise Feed forward networks
+        F = self.ff2(self.ff1(X))
+
+        # Normalization and residual connection
+        X = self.norm(X + F)
+
+        return X
+
+
+class MultiHeadedAttentionLayer(torch.nn.Module):
+
+
+    def __init__(self, d, dk, n_heads):
+        super(MultiHeadedAttentionLayer, self).__init__()
+
+        self.heads = torch.nn.ModuleList([
+            SelfAttentionLayer(d, dk) \
+            for i in range(n_heads)
+        ])
+
+        self.norm = LayerNorm()
+        self.o = torch.nn.Linear(n_heads*dk, d)
 
 
     def forward(self, X):
 
+        # Concatenate output of heads
+        A = torch.cat([
+           self.heads[i](X) for i in range(len(self.heads)) 
+        ], dim=2)
+
+        # Project do embedding dimension space
+        O = self.o(A)
+
+        return O
+
+
+
+class SelfAttentionLayer(torch.nn.Module):
+
+
+    def __init__(self, d_in, d_out):
+        super(SelfAttentionLayer, self).__init__()
+        self.q = torch.nn.Linear(d_in, d_out)
+        self.k = torch.nn.Linear(d_in, d_out)
+        self.v = torch.nn.Linear(d_in, d_out)
+        self.sqrt_dk = torch.sqrt(torch.Tensor([d_out]))
+
+
+    def forward(self, X):
         Q, K, V = self.q(X), self.k(X), self.v(X)
         X = torch.einsum('ijk,ilk->ijl', Q, K)
-        X = torch.tril(X) / self.dk
+        X = torch.tril(X) / self.sqrt_dk
         X = torch.nn.functional.softmax(X, dim=2)
         X = torch.einsum('ijk,ijl->ijl', X, V)
         return X
@@ -100,20 +185,15 @@ def main():
                          drop_last=True, shuffle=True)
 
     embedding_dim = 64
+    attention_dim = 32 
     vocab_size = 1000
     window_size = 128
     hidden_dim = 256
     n_heads = 4
-    sqrt_embedding_dim = torch.sqrt(torch.Tensor([embedding_dim]))
+    n_blocks = 3
 
-    embedding = Embedding(vocab_size, embedding_dim)
-    heads = [
-        SelfAttentionLayer(embedding_dim, embedding_dim//n_heads, hidden_dim) \
-        for i in range(n_heads)
-    ]
-    norm = LayerNorm()
-    ff1 = PositionWiseFFN(embedding_dim, hidden_dim, torch.nn.ReLU())
-    ff2 = PositionWiseFFN(hidden_dim, embedding_dim, torch.nn.Identity())
+    decoder = TransformerDecoder(vocab_size, embedding_dim, attention_dim,
+                                 n_heads, hidden_dim, n_blocks)
 
     for X, Y in tqdm(tloader):
 
@@ -121,22 +201,9 @@ def main():
         X = torch.nn.functional.one_hot(X, vocab_size)
         X = X.type(torch.FloatTensor)
 
-        # Transform one-hot vectors into embeddings
-        X = embedding(X)
+        # Decode
+        X = decoder(X)
 
-        # Transform with multiheaded attention
-        A = torch.cat([
-           heads[i](X) for i in range(len(heads)) 
-        ], dim=2)
-
-        # Normalization and residual connection
-        X = norm(X + A)
-
-        # Position-wise Feed forward networks
-        F = ff2(ff1(X))
-
-        # Normalization and residual connection
-        X = norm(X + F)
 
 
 if __name__ == '__main__':
