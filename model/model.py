@@ -1,37 +1,40 @@
 """
 File containing class for transformer-based decoder model
 """
+from torch.nn import ModuleList, Identity, Linear, Module, ReLU
+from torch.nn.functional import softmax
 import torch.nn.functional as F
 import torch
 
 
-class Decoder(torch.nn.Module):
+class TransformerDecoder(Module):
 
 
-    def __init__(self, n_layers: int, n_heads: int, d_in: int, 
-                 d_out: int, device: str='cpu') -> 'Decoder':
+    def __init__(self, v: int, d: int, dk: int, n_heads: int, hidden: int,
+                 n_blocks: int, device: str='cpu') -> 'Decoder':
         """ Decoder implementation (as described in GPT paper)
 
         Args:
-            n_layers: number of layers
-            n_heads: number of attention heads per transformer block
-            d_in: input dimensions
-            d_out: hidden units
+            v: vocabulary size 
+            d: embedding dimension
+            dk: attention head dimension 
+            n_heads: number of attention heads
+            hidden: number of hidden units in feed forward layers
+            n_blocks: number of transformer blocks
             device: device to keep instance on
 
         Returns:
-            (Decoder): transformer based decoder module
+            (TransformerDecoder): transformer based decoder module
         """
 
-        super(Decoder, self).__init__()
+        super(TransformerDecoder, self).__init__()
 
-        self.embeddings = Embedding(d_out, d_in, device)
-
-        self.blocks = torch.nn.ModuleList([
-            TransformerBlock(d_in, n_heads, device) for i in range(n_layers)
+        self.embedding = Embedding(v, d)
+        self.blocks = ModuleList([
+            TransformerBlock(d, dk, n_heads, hidden) \
+            for i in range(n_blocks)
         ])
-
-        self.linear = torch.nn.Linear(d_in, d_out).to(device=device)
+        self.linear = Linear(d, v)
         self.device = device
 
 
@@ -45,17 +48,20 @@ class Decoder(torch.nn.Module):
             (torch.Tensor): output of layer
         """
 
-        X = self.embeddings(X)
-        
+        # Transform one-hot vectors into embeddings
+        X = self.embedding(X)
+
+        # Run through transformer blocks
         for block in self.blocks:
             X = block(X)
 
-        X = F.softmax(self.linear(X), dim=2)[:, -1, :]
+        # Project to vocabulary space
+        X = softmax(self.linear(X), dim=2)[:, -1, :]
 
         return X
 
 
-class Embedding(torch.nn.Module):
+class Embedding(Module):
 
 
     def __init__(self, size: int, dim: int, device: str='cpu') -> 'Embedding':
@@ -71,34 +77,35 @@ class Embedding(torch.nn.Module):
         """
 
         super(Embedding, self).__init__()
-        self.embeddings = torch.nn.Linear(size, dim).to(device=device)
-        self.device = device
-        self.dim = dim
+        self.embeddings = Linear(size, dim).to(device=device)
 
 
-    def forward(self, batch: torch.Tensor) -> torch.Tensor:
+    def forward(self, X: torch.Tensor) -> torch.Tensor:
         """ Returns word embeddings for batch of indices
 
         Args:
-            batch: batch of word indices
+            X: batch of word indices
 
         Returns:
             (torch.Tensor): word embeddings corresponding to provided indices
 
         """
 
-        return self.embeddings(batch)
+        return self.embeddings(X)
 
 
-class TransformerBlock(torch.nn.Module):
+class TransformerBlock(Module):
 
 
-    def __init__(self, d: int, h: int, device: str='cpu') -> 'TransformerBlock':
+    def __init__(self, d: int, dk: int, n_heads: int, hidden: int, 
+                 device: str='cpu') -> 'TransformerBlock':
         """ Single transformer block implementation
 
         Args:
             d: input dimensions
-            h: number of heads
+            dk: attention head dimensions
+            n_heads: number of heads
+            hidden: hidden units in feed forward layers
             device: device to keep instance on
 
         Returns:
@@ -107,10 +114,10 @@ class TransformerBlock(torch.nn.Module):
 
         super(TransformerBlock, self).__init__()
 
-        self.attn = MultiHeadAttentionLayer(d, h, device)
-        self.ffn = FeedForwardLayer(d, d, device)
+        self.attention = MultiHeadedAttentionLayer(d, dk, n_heads)
         self.norm = LayerNorm()
-        self.device = device
+        self.ff1 = PositionWiseFFN(d, hidden, ReLU())
+        self.ff2 = PositionWiseFFN(hidden, d, Identity())
 
 
     def forward(self, X: torch.Tensor) -> torch.Tensor:
@@ -123,37 +130,46 @@ class TransformerBlock(torch.nn.Module):
             (torch.Tensor): output of layer
         """
 
-        X = self.norm(X + self.attn(X))
-        X = self.norm(X + self.ffn(X))
+        # Run through attention
+        A = self.attention(X)
+
+        # Normalization and residual connection
+        X = self.norm(X + A)
+
+        # Position-wise Feed forward networks
+        F = self.ff2(self.ff1(X))
+
+        # Normalization and residual connection
+        X = self.norm(X + F)
+
         return X
 
 
-class MultiHeadAttentionLayer(torch.nn.Module):
+class MultiHeadedAttentionLayer(torch.nn.Module):
 
     
-    def __init__(self, d: int, h: int, device: str='cpu') -> 'MultiHeadAttentionLayer':
+    def __init__(self, d: int, dk: int, n_heads: int, 
+                 device: str='cpu') -> 'MultiHeadAttentionLayer':
         """ Multi-headed self-attention layer implementation
 
         Args:
             d: input dimensions
-            h: number of heads
+            dk: attention head dimensions
+            n_heads: number of heads
             device: device to keep instance on
 
         Returns:
-            (MultiHeadAttentionLayer): multi-headed self-attention layer
+            (MultiHeadedAttentionLayer): multi-headed self-attention layer
         """
 
-        super(MultiHeadAttentionLayer, self).__init__()
+        super(MultiHeadedAttentionLayer, self).__init__()
 
         self.heads = torch.nn.ModuleList([
-            SelfAttentionLayer(d, d//h, device) for i in range(h)
+            SelfAttentionLayer(d, dk) \
+            for i in range(n_heads)
         ])
 
-        self.W_o = torch.nn.Linear(d, d).to(device=device)
-        self.device = device
-        self.dh = d//h
-        self.h = h
-        self.d = d
+        self.o = torch.nn.Linear(n_heads*dk, d)
 
 
     def forward(self, X: torch.Tensor) -> torch.Tensor:
@@ -166,12 +182,15 @@ class MultiHeadAttentionLayer(torch.nn.Module):
             (torch.Tensor): output of layer
         """
 
-        Z = []
-        for i in range(self.h):
-            Z.append(self.heads[i](X))
+        # Concatenate output of heads
+        A = torch.cat([
+           self.heads[i](X) for i in range(len(self.heads)) 
+        ], dim=2)
 
-        Z = torch.cat(Z, dim=2)
-        return Z
+        # Project to embedding dimension space
+        O = self.o(A)
+
+        return O
 
 
 class SelfAttentionLayer(torch.nn.Module):
@@ -191,10 +210,10 @@ class SelfAttentionLayer(torch.nn.Module):
 
         super(SelfAttentionLayer, self).__init__()
 
-        self.W_q = torch.nn.Linear(d_in, d_out).to(device=device)
-        self.W_k = torch.nn.Linear(d_in, d_out).to(device=device)
-        self.W_v = torch.nn.Linear(d_in, d_out).to(device=device)
-        self.sd = torch.sqrt(torch.Tensor([d_out])).to(device=device)
+        self.q = torch.nn.Linear(d_in, d_out).to(device=device)
+        self.k = torch.nn.Linear(d_in, d_out).to(device=device)
+        self.v = torch.nn.Linear(d_in, d_out).to(device=device)
+        self.sqrt_dk = torch.sqrt(torch.Tensor([d_out])).to(device=device)
         self.device = device
 
 
@@ -208,36 +227,33 @@ class SelfAttentionLayer(torch.nn.Module):
             (torch.Tensor): output of layer
         """
 
-        Q = self.W_q(X)
-        K = self.W_k(X)
-        V = self.W_v(X)
-
-        QK = torch.einsum('ijk,ilk->ijl', Q, K) / self.sd
-        sQK = torch.tril(F.softmax(QK, dim=2))
-        out = torch.einsum('ijk,ikl->ijl', sQK, V)
-        return out
+        Q, K, V = self.q(X), self.k(X), self.v(X)
+        QK = torch.einsum('ijk,ilk->ijl', Q, K) / self.sqrt_dk
+        sQK = softmax(torch.tril(X), dim=2)
+        A = torch.einsum('ijk,ijl->ijl', sQK, V)
+        return A 
 
 
-class FeedForwardLayer(torch.nn.Module):
+class PositionWiseFFN(torch.nn.Module):
 
 
-    def __init__(self, d_in: int, d_out: int, device: str='cpu') -> 'FeedForwardLayer':
-        """ Feed forward neural network layer implementation
+    def __init__(self, d_in: int, d_out: int, activation: Module, 
+                 device: str='cpu') -> 'FeedForwardLayer':
+        """ Position-wise feed forward neural network implementation
 
         Args:
             d_in: input dimensions
             d_out: hidden units
+            activation: activation function
             device: device to keep instance on
 
         Returns:
-            (FeedForwardLayer): feed forward layer
+            (PositionWiseFFN): Position-wise feed forward netork module
         """
 
-        super(FeedForwardLayer, self).__init__()
-
-        self.W = torch.nn.Linear(d_in, d_out).to(device=device)
-        self.act = torch.nn.ReLU()
-        self.device = device
+        super(PositionWiseFFN, self).__init__()
+        self.w = torch.nn.Linear(d_in, d_out).to(device=device)
+        self.activation = activation
 
 
     def forward(self, X: torch.Tensor) -> torch.Tensor:
@@ -250,9 +266,11 @@ class FeedForwardLayer(torch.nn.Module):
             (torch.Tensor): output of layer
         """
 
-        X = self.W(X)
-        X = self.act(X)
-        return X
+        X = torch.cat([
+            self.w(X[:, i, :])[:, None, :] for i in range(X.shape[1])
+        ], dim=1)
+
+        return self.activation(X)
 
 
 class LayerNorm(torch.nn.Module):
@@ -276,5 +294,7 @@ class LayerNorm(torch.nn.Module):
         """
 
         mu = torch.mean(X, dim=2)[:, :, None]
-        sigma = torch.mean((X-mu)**2, dim=2)[:, :, None]
+        sigma = torch.square(X - mu)
+        sigma = torch.sum(sigma, dim=2) / X.shape[2]
+        sigma = torch.sqrt(sigma)[:, :, None]
         return (X - mu) / sigma
