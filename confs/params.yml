@@ -5,5 +5,25 @@ dataset:
     vocab: 1000
     window: 128
 
+model:
+    v: 1000
+    d: 64
+    dk: 32 
+    n_heads: 4
+    hidden: 256
+    n_blocks: 3
+    device: 'cpu'
+
 loader:
-    batch_size: 8 
+    batch_size: 8
+
+optimizer:
+    lr: 0.01
+
+scheduler:
+    base_lr: 0.001
+    max_lr: 0.1
+
+epochs: 2
+
+checkpoint: "/home/akshat/Programs/Decoders/checkpoints"

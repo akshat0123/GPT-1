@@ -10,14 +10,14 @@ from tqdm import trange, tqdm
 from torch.optim import SGD
 import torch
 
+from model.model import TransformerDecoder
 from model.dataset import BooksCorpus
-from model.model import Decoder
 
 
 configpath = 'confs/params.yml'
 
 
-def train_epoch(decoder: Decoder, loader: DataLoader, 
+def train_epoch(decoder: TransformerDecoder, loader: DataLoader, 
                 criterion: CrossEntropyLoss, optimizer: SGD, 
                 scheduler: CyclicLR) -> (float, float):
     """ Run one training epoch
@@ -58,7 +58,7 @@ def train_epoch(decoder: Decoder, loader: DataLoader,
         total_loss += loss.item()
         count += x.shape[0]
 
-        desc = f'Train Loss: {total_loss/count:.4f} | Train Err: {total_err/count:.4f}'
+        desc = f'Train Loss: {total_loss/count:.6f} | Train Err: {total_err/count:.6f}'
         progress.set_description(desc)
         progress.update(1)
 
@@ -67,7 +67,7 @@ def train_epoch(decoder: Decoder, loader: DataLoader,
     return total_loss/count, total_err/count
 
 
-def val_epoch(decoder: Decoder, loader: DataLoader, 
+def val_epoch(decoder: TransformerDecoder, loader: DataLoader, 
               criterion: CrossEntropyLoss) -> (float, float):
     """ Run one validation epoch
 
@@ -101,7 +101,7 @@ def val_epoch(decoder: Decoder, loader: DataLoader,
         total_loss += loss.item()
         count += x.shape[0]
 
-        desc = f'Val Loss: {total_loss/count:.4f} | Val Err: {total_err/count:.4f}'
+        desc = f'Val Loss: {total_loss/count:.6f} | Val Err: {total_err/count:.6f}'
         progress.set_description(desc)
         progress.update(1)
 
@@ -127,7 +127,7 @@ def main():
                          drop_last=True, shuffle=True)
 
     # Initialize model        
-    model = Decoder(**confs['decoder'])
+    model = TransformerDecoder(**confs['model'])
 
     # Initialize optimizer, scheduler, and loss
     optimizer = SGD(model.parameters(), **confs['optimizer'])
