@@ -45,7 +45,7 @@ def train_epoch(decoder: TransformerDecoder, loader: DataLoader,
 
         x = x.to(device=decoder.device)
         x = torch.nn.functional.one_hot(x, 1000)
-        x = x.type(torch.FloatTensor)
+        x = x.type(torch.FloatTensor).to(device=decoder.device)
         y = y.to(device=decoder.device)
 
         pred = decoder(x)
@@ -90,7 +90,7 @@ def val_epoch(decoder: TransformerDecoder, loader: DataLoader,
 
         x = x.to(device=decoder.device)
         x = torch.nn.functional.one_hot(x, 1000)
-        x = x.type(torch.FloatTensor)
+        x = x.type(torch.FloatTensor).to(device=decoder.device)
         y = y.to(device=decoder.device)
 
         pred = decoder(x)

@@ -29,12 +29,12 @@ class TransformerDecoder(Module):
 
         super(TransformerDecoder, self).__init__()
 
-        self.embedding = Embedding(v, d)
+        self.embedding = Embedding(v, d, device)
         self.blocks = ModuleList([
-            TransformerBlock(d, dk, n_heads, hidden) \
+            TransformerBlock(d, dk, n_heads, hidden, device) \
             for i in range(n_blocks)
         ])
-        self.linear = Linear(d, v)
+        self.linear = Linear(d, v).to(device=device)
         self.device = device
 
 
@@ -114,10 +114,10 @@ class TransformerBlock(Module):
 
         super(TransformerBlock, self).__init__()
 
-        self.attention = MultiHeadedAttentionLayer(d, dk, n_heads)
+        self.attention = MultiHeadedAttentionLayer(d, dk, n_heads, device)
         self.norm = LayerNorm()
-        self.ff1 = PositionWiseFFN(d, hidden, ReLU())
-        self.ff2 = PositionWiseFFN(hidden, d, Identity())
+        self.ff1 = PositionWiseFFN(d, hidden, ReLU(), device)
+        self.ff2 = PositionWiseFFN(hidden, d, Identity(), device)
 
 
     def forward(self, X: torch.Tensor) -> torch.Tensor:
@@ -165,11 +165,11 @@ class MultiHeadedAttentionLayer(torch.nn.Module):
         super(MultiHeadedAttentionLayer, self).__init__()
 
         self.heads = torch.nn.ModuleList([
-            SelfAttentionLayer(d, dk) \
+            SelfAttentionLayer(d, dk, device) \
             for i in range(n_heads)
         ])
 
-        self.o = torch.nn.Linear(n_heads*dk, d)
+        self.o = torch.nn.Linear(n_heads*dk, d).to(device=device)
 
 
     def forward(self, X: torch.Tensor) -> torch.Tensor:
