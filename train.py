@@ -34,6 +34,12 @@ def train_epoch(decoder: TransformerDecoder, loader: DataLoader,
         (float): average error across epoch
     """
 
+    if decoder.device != 'cpu':         
+        tensortype = torch.cuda.FloatTensor 
+
+    else:
+        tensortype = torch.FloatTensor
+
     total_loss = 0.0
     total_err = 0.0
     count = 0
@@ -44,8 +50,8 @@ def train_epoch(decoder: TransformerDecoder, loader: DataLoader,
         optimizer.zero_grad()
 
         x = x.to(device=decoder.device)
-        x = torch.nn.functional.one_hot(x, 1000)
-        x = x.type(torch.FloatTensor).to(device=decoder.device)
+        x = torch.nn.functional.one_hot(x, 30000)
+        x = x.type(tensortype)
         y = y.to(device=decoder.device)
 
         pred = decoder(x)
@@ -80,6 +86,11 @@ def val_epoch(decoder: TransformerDecoder, loader: DataLoader,
         (float): average loss across epoch
         (float): average error across epoch
     """
+    if decoder.device != 'cpu':         
+        tensortype = torch.cuda.FloatTensor 
+
+    else:
+        tensortype = torch.FloatTensor
 
     total_loss = 0.0
     total_err = 0.0
@@ -90,7 +101,7 @@ def val_epoch(decoder: TransformerDecoder, loader: DataLoader,
 
         x = x.to(device=decoder.device)
         x = torch.nn.functional.one_hot(x, 1000)
-        x = x.type(torch.FloatTensor).to(device=decoder.device)
+        x = x.type(tensortype).to(device=decoder.device)
         y = y.to(device=decoder.device)
 
         pred = decoder(x)
@@ -130,9 +141,9 @@ def main():
     model = TransformerDecoder(**confs['model'])
 
     # Initialize optimizer, scheduler, and loss
-    optimizer = SGD(model.parameters(), **confs['optimizer'])
-    scheduler = CyclicLR(optimizer=optimizer, **confs['scheduler'])
-    criterion = CrossEntropyLoss()
+    opt = SGD(model.parameters(), **confs['optimizer'])
+    scheduler = CyclicLR(optimizer=opt, **confs['scheduler'])
+    loss = CrossEntropyLoss()
 
     writer = SummaryWriter()
 
@@ -140,16 +151,15 @@ def main():
     min_vloss = float('inf')
     for epoch in range(confs['epochs']):
 
-        tloss, terr = train_epoch(model, tloader, criterion, optimizer,
-                                  scheduler)
-        vloss, verr = val_epoch(model, dloader, criterion)
+        tloss, terr = train_epoch(model, tloader, loss, opt, scheduler)
+        vloss, verr = val_epoch(model, dloader, loss)
 
         writer.add_scalar('Train Loss', tloss, epoch)
         writer.add_scalar('Val Loss', vloss, epoch)
         writer.add_scalar('Train Err', terr, epoch)
         writer.add_scalar('Val Err', verr, epoch)
 
-        checkpoint = { 'optimizer': optimizer.state_dict(), 
+        checkpoint = { 'optimizer': opt.state_dict(), 
                        'scheduler': scheduler.state_dict(), 
                        'model': model.state_dict(), 'train_loss': tloss,
                        'val_loss': vloss, 'train_err': terr, 'val_err': verr,
