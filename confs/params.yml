@@ -1,21 +1,22 @@
 dataset:
-    countpath: "/home/apgpu/Programs/Decoders/data/counts.txt"
-    datapath: "/home/apgpu/Programs/Decoders/data/data.txt"
-    linecount: 3834456
-    vocab: 40000
+    countpath: "/home/akshat/Programs/Decoders/data/counts.txt"
+    datapath: "/home/akshat/Programs/Decoders/data/data.txt"
+    linecount: 500
+    vocab: 1000
     window: 128
 
 model:
-    v: 40000
-    d: 384
-    dk: 128
-    n_heads: 3
-    hidden: 1536
-    n_blocks: 3
-    device: 'cuda:0'
+    v: 1000
+    d: 6 
+    dk: 32
+    n_heads: 2
+    hidden: 256
+    n_blocks: 2
+    dropout: 0.1
+    device: 'cpu'
 
 loader:
-    batch_size: 32
+    batch_size: 16
 
 optimizer:
     lr: 0.01
@@ -26,4 +27,4 @@ scheduler:
 
 epochs: 1
 
-checkpoint: "/home/apgpu/Programs/Decoders/checkpoints"
+checkpoint: "/home/akshat/Programs/Decoders/checkpoints"
