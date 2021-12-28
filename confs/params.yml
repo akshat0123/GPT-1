@@ -20,12 +20,12 @@ loader:
     batch_size: 16
 
 optimizer:
-    lr: 0.01
+    lr: 0.00025
+    weight_decay: 0.01
 
 scheduler:
-    base_lr: 0.0001
-    max_lr: 0.01
+    T_max: 0.00025
 
-epochs: 1
+epochs: 5
 
 checkpoint: "/home/akshat/Programs/Decoders/checkpoints"
