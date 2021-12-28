@@ -19,7 +19,7 @@ configpath = 'confs/params.yml'
 
 def train_epoch(decoder: TransformerDecoder, loader: DataLoader, 
                 criterion: CrossEntropyLoss, optimizer: SGD, 
-                scheduler: CyclicLR) -> (float, float):
+                scheduler: CyclicLR, vsize: int) -> (float, float):
     """ Run one training epoch
 
     Args:
@@ -28,6 +28,7 @@ def train_epoch(decoder: TransformerDecoder, loader: DataLoader,
         criterion: loss function
         optimizer: optimization function
         scheduler: learning rate scheduler
+        vsize: vocabulary size
 
     Returns:
         (float): average loss across epoch
@@ -50,7 +51,7 @@ def train_epoch(decoder: TransformerDecoder, loader: DataLoader,
         optimizer.zero_grad()
 
         x = x.to(device=decoder.device)
-        x = torch.nn.functional.one_hot(x, 30000)
+        x = torch.nn.functional.one_hot(x, vsize)
         x = x.type(tensortype)
         y = y.to(device=decoder.device)
 
@@ -74,13 +75,14 @@ def train_epoch(decoder: TransformerDecoder, loader: DataLoader,
 
 
 def val_epoch(decoder: TransformerDecoder, loader: DataLoader, 
-              criterion: CrossEntropyLoss) -> (float, float):
+              criterion: CrossEntropyLoss, vsize: int) -> (float, float):
     """ Run one validation epoch
 
     Args:
         decoder: transformer-based decoder
         loader: dataset batch loader
         criterion: loss function
+        vsize: vocabulary size
 
     Returns:
         (float): average loss across epoch
@@ -100,7 +102,7 @@ def val_epoch(decoder: TransformerDecoder, loader: DataLoader,
     for x, y in loader:
 
         x = x.to(device=decoder.device)
-        x = torch.nn.functional.one_hot(x, 1000)
+        x = torch.nn.functional.one_hot(x, vsize)
         x = x.type(tensortype).to(device=decoder.device)
         y = y.to(device=decoder.device)
 
@@ -122,6 +124,7 @@ def val_epoch(decoder: TransformerDecoder, loader: DataLoader,
 def main():
 
     confs = yaml.load(open(configpath, 'r'), Loader=yaml.SafeLoader)
+    vsize = confs['dataset']['vocab']
 
     # Load dataset
     dataset = BooksCorpus(**confs['dataset'])
@@ -151,8 +154,8 @@ def main():
     min_vloss = float('inf')
     for epoch in range(confs['epochs']):
 
-        tloss, terr = train_epoch(model, tloader, loss, opt, scheduler)
-        vloss, verr = val_epoch(model, dloader, loss)
+        tloss, terr = train_epoch(model, tloader, loss, opt, scheduler, vsize)
+        vloss, verr = val_epoch(model, dloader, loss, vsize)
 
         writer.add_scalar('Train Loss', tloss, epoch)
         writer.add_scalar('Val Loss', vloss, epoch)
