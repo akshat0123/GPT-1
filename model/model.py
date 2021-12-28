@@ -32,7 +32,7 @@ class TransformerDecoder(Module):
 
         super(TransformerDecoder, self).__init__()
 
-        self.pids = torch.Tensor([i for i in range(w)])
+        self.pids = torch.Tensor([i for i in range(w)]).to(device=device)
         self.embedding = Embedding(v, d, device)
         self.position = Embedding(w, d, device)
         self.blocks = ModuleList([

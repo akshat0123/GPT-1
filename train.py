@@ -41,10 +41,8 @@ def train_step(decoder: TransformerDecoder, criterion: CrossEntropyLoss,
     if not val:
         optimizer.zero_grad()
 
-    x = x.to(device=decoder.device)
     x = torch.nn.functional.one_hot(x, vsize)
     x = x.type(tensortype)
-    y = y.to(device=decoder.device)
 
     pred = decoder(x)
     loss = criterion(pred, y)
@@ -86,8 +84,11 @@ def run_epoch(decoder: TransformerDecoder, loader: DataLoader,
     count = 0
 
     dname = 'Train' if not val else 'Val'
-    progress = tqdm(total=len(loader), desc=f'{dname} Loss: | {dname} Err: ')
+    progress = tqdm(total=len(loader), desc=f'{dname} Loss: | Err: ')
     for x, y in loader:
+
+        x = x.to(device=decoder.device)
+        y = y.to(device=decoder.device)
 
         pred, loss = train_step(decoder, criterion, optimizer, x, y, vsize,
                                 tensortype, val)
@@ -97,7 +98,7 @@ def run_epoch(decoder: TransformerDecoder, loader: DataLoader,
         total_loss += loss.item()
         count += x.shape[0]
 
-        desc = f'{dname} Loss: {total_loss/count:.6f} | {dname} Err: {total_err/count:.6f}'
+        desc = f'{dname} Loss: {total_loss/count:.10f} | Err: {total_err/count:.10f}'
         progress.set_description(desc)
         progress.update(1)
 
