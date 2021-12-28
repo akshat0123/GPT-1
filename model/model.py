@@ -1,7 +1,7 @@
 """
 File containing class for transformer-based decoder model
 """
-from torch.nn import ModuleList, Identity, Linear, Module, ReLU
+from torch.nn import ModuleList, Identity, Dropout, Linear, Module, ReLU
 from torch.nn.functional import softmax
 import torch.nn.functional as F
 import torch
@@ -11,7 +11,7 @@ class TransformerDecoder(Module):
 
 
     def __init__(self, v: int, d: int, dk: int, n_heads: int, hidden: int,
-                 n_blocks: int, device: str='cpu') -> 'Decoder':
+                 n_blocks: int, dropout: float, device: str='cpu') -> 'Decoder':
         """ Decoder implementation (as described in GPT paper)
 
         Args:
@@ -21,6 +21,7 @@ class TransformerDecoder(Module):
             n_heads: number of attention heads
             hidden: number of hidden units in feed forward layers
             n_blocks: number of transformer blocks
+            dropout: amount of dropout to add to block sublayers
             device: device to keep instance on
 
         Returns:
@@ -31,7 +32,7 @@ class TransformerDecoder(Module):
 
         self.embedding = Embedding(v, d, device)
         self.blocks = ModuleList([
-            TransformerBlock(d, dk, n_heads, hidden, device) \
+            TransformerBlock(d, dk, n_heads, hidden, dropout, device) \
             for i in range(n_blocks)
         ])
         self.linear = Linear(d, v).to(device=device)
@@ -98,7 +99,7 @@ class TransformerBlock(Module):
 
 
     def __init__(self, d: int, dk: int, n_heads: int, hidden: int, 
-                 device: str='cpu') -> 'TransformerBlock':
+                 dropout: float, device: str='cpu') -> 'TransformerBlock':
         """ Single transformer block implementation
 
         Args:
@@ -106,6 +107,7 @@ class TransformerBlock(Module):
             dk: attention head dimensions
             n_heads: number of heads
             hidden: hidden units in feed forward layers
+            dropout: amount of dropout to add to sublayers
             device: device to keep instance on
 
         Returns:
@@ -118,6 +120,8 @@ class TransformerBlock(Module):
         self.norm = LayerNorm()
         self.ff1 = PositionWiseFFN(d, hidden, ReLU(), device)
         self.ff2 = PositionWiseFFN(hidden, d, Identity(), device)
+        self.d1 = Dropout(p=dropout)
+        self.d2 = Dropout(p=dropout)
 
 
     def forward(self, X: torch.Tensor) -> torch.Tensor:
@@ -134,13 +138,13 @@ class TransformerBlock(Module):
         A = self.attention(X)
 
         # Normalization and residual connection
-        X = self.norm(X + A)
+        X = self.norm(X + self.d1(A))
 
         # Position-wise Feed forward networks
         F = self.ff2(self.ff1(X))
 
         # Normalization and residual connection
-        X = self.norm(X + F)
+        X = self.norm(X + self.d2(F))
 
         return X
 
