@@ -10,12 +10,14 @@ import torch
 class TransformerDecoder(Module):
 
 
-    def __init__(self, v: int, d: int, dk: int, n_heads: int, hidden: int,
-                 n_blocks: int, dropout: float, device: str='cpu') -> 'Decoder':
+    def __init__(self, v: int, w: int, d: int, dk: int, n_heads: int, 
+                 hidden: int, n_blocks: int, dropout: float, 
+                 device: str='cpu') -> 'Decoder':
         """ Decoder implementation (as described in GPT paper)
 
         Args:
             v: vocabulary size 
+            w: window size  of sequence
             d: embedding dimension
             dk: attention head dimension 
             n_heads: number of attention heads
@@ -30,7 +32,9 @@ class TransformerDecoder(Module):
 
         super(TransformerDecoder, self).__init__()
 
+        self.pids = torch.Tensor([i for i in range(w)])
         self.embedding = Embedding(v, d, device)
+        self.position = Embedding(w, d, device)
         self.blocks = ModuleList([
             TransformerBlock(d, dk, n_heads, hidden, dropout, device) \
             for i in range(n_blocks)
@@ -51,6 +55,9 @@ class TransformerDecoder(Module):
 
         # Transform one-hot vectors into embeddings
         X = self.embedding(X)
+
+        # Add positional embedding
+        X += self.position(self.pids)
 
         # Run through transformer blocks
         for block in self.blocks:
