@@ -10,7 +10,21 @@ from tqdm import trange, tqdm
 import torch
 
 
-def freqs_to_maps(path, limit, unk, pad):
+def freqs_to_maps(path: str, vocab: int, unk: str, 
+                  pad: str) -> (Dict[str, int], Dict[int, str]):
+    """ Create two maps from file of word frequencies: 1 mapping words to
+        indices, and one mapping indices to words 
+
+    Args:
+        path: path to file containing frequencies
+        vocab: size of vocabulary
+        unk: token to use for unknown words
+        pad: token to use for padding
+
+    Return:
+        Dict[str, int]: dict mapping tokens to indices
+        Dict[str, int]: dict mapping indices to tokens
+    """
 
     vmap, imap, count = {}, {}, 0
     with open(path, 'r') as infile:
@@ -19,7 +33,7 @@ def freqs_to_maps(path, limit, unk, pad):
         while line:
             word, freq = line.split('\t')
 
-            if count == limit-2: 
+            if count == vocab-2: 
                 break
 
             line = infile.readline()
@@ -34,7 +48,16 @@ def freqs_to_maps(path, limit, unk, pad):
     return vmap, imap
 
 
-def sopen(filepath, linecount):
+def sopen(filepath: str, linecount: int) -> List[str]:
+    """ Reads in all lines from filepath with progress bar
+
+    Args:
+        filepath: file path of file to read from
+        linecount: length of file in lines
+
+    Return:
+        (List[str]): lines from file
+    """
 
     lines = []
     progress = tqdm(total=linecount, desc='Loading data')
@@ -52,7 +75,22 @@ def sopen(filepath, linecount):
 class BooksCorpusTokenizer:
 
 
-    def __init__(self, countpath, start, window, unk, pad, end, vocab):
+    def __init__(self, countpath: str, window: int, vocab: int, start: str, 
+                 unk: str, pad: str, end: str) -> 'BooksCorpusTokenizer':
+        """ Tokenizer for BooksCorpus dataset
+
+        Args:
+            countpath: path of file containing term frequencies
+            window: number of tokens in each window
+            vocab: size of vocabulary
+            start: token for start of document
+            unk: token for unknown terms
+            pad: token for padding
+            end: token for end of document
+
+        Return:
+            (BooksCorpusTokenizer): tokenizer instance
+        """
         self.vmap, self.imap = freqs_to_maps(countpath, vocab, unk, pad)
         self.tokenizer = Tokenizer(English().vocab)
         self.window = window
@@ -63,7 +101,16 @@ class BooksCorpusTokenizer:
         self.end = end
 
 
-    def tokenize_line(self, line):
+    def tokenize_line(self, line: str) -> (torch.Tensor, torch.Tensor):
+        """ Tokenize a single line of text
+
+        Args:
+            line: line of text to be tokenized
+
+        Return:
+            (torch.Tensor): input sequence
+            (torch.Tensor): final term in sequence
+        """
 
         tokens = [
             t.text if t.text in self.vmap else self.unk 
@@ -82,7 +129,16 @@ class BooksCorpusTokenizer:
         return xids, yid
 
 
-    def tokenize(self, lines):
+    def tokenize(self, lines: List[str]) -> (torch.Tensor, torch.Tensor):
+        """ Tokenize batch of lines
+
+        Args:
+            lines: list of lines to be tokenized
+
+        Return:
+            (torch.Tensor): batch of input sequences
+            (torch.Tensor): batch of correcponding final terms for sequences
+        """
 
         X = torch.empty((len(lines), self.window, self.vocab))
         Y = torch.empty((len(lines), self.vocab))
@@ -94,13 +150,31 @@ class BooksCorpusTokenizer:
         return X, Y
 
     
-    def decode_line(self, x):
+    def decode_line(self, x: torch.Tensor) -> List[str]:
+        """ Turn one-hot vectors into tokens
+
+        Args:
+            x: one-hot vectors to retrieve tokens for
+
+        Return:
+            (List[str]): list of corresponding tokens for vector
+        """
         ids = torch.argmax(x, dim=1)
         tokens = [self.imap[i.item()] for i in ids]
         return tokens
 
 
-    def decode(self, x):
+    def decode(self, x: torch.Tensor) -> List[List[str]]:
+        """ Turn batch of one-hot vectors into tokens
+
+        Args:
+            x: batch of one-hot vectors to retrieve tokens for
+
+        Return:
+            (List[List[str]]): list of lists of tokens for batch of one-hot
+                               vectors
+        """
+
         lines = []
 
         for i in range(x.shape[0]):
@@ -112,7 +186,16 @@ class BooksCorpusTokenizer:
 class BooksCorpus(Dataset):
 
 
-    def __init__(self, datapath, linecount):
+    def __init__(self, datapath: str, linecount: int=None) -> 'BooksCorpus':
+        """ Dataset class for BooksCorpus dataset
+
+        Args:
+            datapath: filepath to dataset
+            linecount: number of lines in dataset
+
+        Return:
+            (BooksCorpus): instance of dataset 
+        """
         super(Dataset, self).__init__()
 
         if linecount is None:
@@ -123,11 +206,24 @@ class BooksCorpus(Dataset):
 
 
     def __len__(self) -> int:
+        """ Return length of dataset
+
+        Return:
+            (int): length of dataset
+        """
 
         return len(self.data)
 
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: int) -> str:
+        """ Return item at specified index of dataset
+
+        Args:
+            idx: index of item in dataset
+
+        Return:
+            (str): line of dataset at provided index
+        """
 
         return self.data[idx].strip()
 
