@@ -1,9 +1,20 @@
-dataset:
+tokenizer:
     countpath: "/home/apgpu/Programs/Decoders/data/counts.txt"
-    datapath: "/home/apgpu/Programs/Decoders/data/data.txt"
-    linecount: 3834456
+    start: "<START>"
+    unk: "<UNK>"
+    pad: "<PAD>"
+    end: "<END>"
     vocab: 40000
     window: 128
+
+dataset:
+    datapath: "/home/apgpu/Programs/Decoders/data/data.txt"
+    linecount: 3834456
+
+loader:
+    drop_last: True
+    batch_size: 32
+    shuffle: True
 
 model:
     v: 40000
@@ -15,9 +26,6 @@ model:
     n_blocks: 3
     dropout: 0.1
     device: 'cuda:0'
-
-loader:
-    batch_size: 32 
 
 optimizer:
     lr: 0.00025

@@ -123,8 +123,8 @@ class BooksCorpusTokenizer:
 
         ids = torch.Tensor([self.vmap[t] for t in tokens])
         ids = ids.type(torch.LongTensor)
-        ids = torch.nn.functional.one_hot(ids, self.vocab)
         xids, yid = ids[:-1], ids[-1]
+        xids = torch.nn.functional.one_hot(xids, self.vocab)
 
         return xids, yid
 
@@ -141,7 +141,7 @@ class BooksCorpusTokenizer:
         """
 
         X = torch.empty((len(lines), self.window, self.vocab))
-        Y = torch.empty((len(lines), self.vocab))
+        Y = torch.empty((len(lines)))
 
         for i in range(len(lines)):
             x, y = self.tokenize_line(lines[i])
