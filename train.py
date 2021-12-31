@@ -10,8 +10,8 @@ from tqdm import trange, tqdm
 from torch.optim import Adam
 import torch
 
+from model.dataset import BooksCorpusTokenizer, BooksCorpus
 from model.model import TransformerDecoder
-from model.dataset import BooksCorpus
 
 
 configpath = 'confs/params.yml'
@@ -19,7 +19,6 @@ configpath = 'confs/params.yml'
 
 def train_step(decoder: TransformerDecoder, criterion: CrossEntropyLoss,
                optimizer: Adam, x: torch.Tensor, y: torch.tensor, 
-               vsize: int, tensortype: torch.dtype, 
                val: bool) -> (torch.Tensor, torch.Tensor):
     """ Run one training step
 
@@ -29,7 +28,6 @@ def train_step(decoder: TransformerDecoder, criterion: CrossEntropyLoss,
         optimizer: optimization function
         x: batch for model input
         y: batch of input labels
-        vsize: vocabulary size
         val: boolean flag called for validation dataset
 
     Returns:
@@ -40,9 +38,6 @@ def train_step(decoder: TransformerDecoder, criterion: CrossEntropyLoss,
 
     if not val:
         optimizer.zero_grad()
-
-    x = torch.nn.functional.one_hot(x, vsize)
-    x = x.type(tensortype)
 
     pred = decoder(x)
     loss = criterion(pred, y)
@@ -55,29 +50,26 @@ def train_step(decoder: TransformerDecoder, criterion: CrossEntropyLoss,
 
 
 def run_epoch(decoder: TransformerDecoder, loader: DataLoader, 
-              criterion: CrossEntropyLoss, optimizer: Adam, 
-              scheduler: CosineAnnealingLR, vsize: int, 
+              tokenizer: BooksCorpusTokenizer, criterion: CrossEntropyLoss,
+              optimizer: Adam, scheduler: CosineAnnealingLR, 
               val: bool=False) -> (float, float):
     """ Run one training epoch
 
     Args:
         decoder: transformer-based decoder
         loader: dataset batch loader
+        tokenizer: dataset tokenizer
         criterion: loss function
         optimizer: optimization function
         scheduler: learning rate scheduler
-        vsize: vocabulary size
         val: boolean flag called for validation dataset
 
     Returns:
         (float): average loss across epoch
         (float): average error across epoch
     """
-    if decoder.device != 'cpu':         
-        tensortype = torch.cuda.FloatTensor 
-
-    else:
-        tensortype = torch.FloatTensor
+    tensortype = torch.cuda.LongTensor if decoder.device != 'cpu' \
+                 else torch.LongTensor
 
     total_loss = 0.0
     total_err = 0.0
@@ -85,13 +77,14 @@ def run_epoch(decoder: TransformerDecoder, loader: DataLoader,
 
     dname = 'Train' if not val else 'Val'
     progress = tqdm(total=len(loader), desc=f'{dname} Loss: | Err: ')
-    for x, y in loader:
+    for batch in loader:
 
+        x, y = tokenizer.tokenize(batch)
         x = x.to(device=decoder.device)
         y = y.to(device=decoder.device)
+        y = y.type(tensortype)
 
-        pred, loss = train_step(decoder, criterion, optimizer, x, y, vsize,
-                                tensortype, val)
+        pred, loss = train_step(decoder, criterion, optimizer, x, y, val)
 
         yhat = torch.argmax(pred, dim=1)
         total_err += torch.sum(yhat!=y).item()
@@ -111,9 +104,9 @@ def run_epoch(decoder: TransformerDecoder, loader: DataLoader,
 def main():
 
     confs = yaml.load(open(configpath, 'r'), Loader=yaml.SafeLoader)
-    vsize = confs['dataset']['vocab']
 
-    # Load dataset
+    # Load tokenizer and dataset 
+    tok = BooksCorpusTokenizer(**confs['tokenizer']) 
     dataset = BooksCorpus(**confs['dataset'])
 
     # Split into train and dev datasets
@@ -122,17 +115,15 @@ def main():
     train, dev = random_split(dataset, [train_size, dev_size])
 
     # Initialize train and dev data loaders
-    tloader = DataLoader(batch_size=confs['loader']['batch_size'],
-                         dataset=train, drop_last=True, shuffle=True)
-    dloader = DataLoader(batch_size=confs['loader']['batch_size'], dataset=dev,
-                         drop_last=True, shuffle=True)
+    tloader = DataLoader(dataset=train, **confs['loader'])
+    dloader = DataLoader(dataset=dev, **confs['loader'])
 
     # Initialize model        
     model = TransformerDecoder(**confs['model'])
 
     # Initialize optimizer, scheduler, and loss
     opt = Adam(model.parameters(), **confs['optimizer'])
-    scheduler = CosineAnnealingLR(optimizer=opt, **confs['scheduler'])
+    sch = CosineAnnealingLR(optimizer=opt, **confs['scheduler'])
     loss = CrossEntropyLoss()
 
     writer = SummaryWriter()
@@ -141,9 +132,8 @@ def main():
     min_vloss = float('inf')
     for epoch in range(confs['epochs']):
 
-        tloss, terr = run_epoch(model, tloader, loss, opt, scheduler, vsize)
-        vloss, verr = run_epoch(model, tloader, loss, opt, scheduler, vsize,
-                                val=True)
+        tloss, terr = run_epoch(model, tloader, tok, loss, opt, sch)
+        vloss, verr = run_epoch(model, dloader, tok, loss, opt, sch, val=True)
 
         writer.add_scalar('Train Loss', tloss, epoch)
         writer.add_scalar('Val Loss', vloss, epoch)
@@ -151,7 +141,7 @@ def main():
         writer.add_scalar('Val Err', verr, epoch)
 
         checkpoint = { 'optimizer': opt.state_dict(), 
-                       'scheduler': scheduler.state_dict(), 
+                       'scheduler': sch.state_dict(), 
                        'model': model.state_dict(), 'train_loss': tloss,
                        'val_loss': vloss, 'train_err': terr, 'val_err': verr,
                        'epoch': epoch }
