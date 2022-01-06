@@ -75,28 +75,30 @@ def run_epoch(decoder: TransformerDecoder, loader: DataLoader,
     total_err = 0.0
     count = 0
 
-    dname = 'Train' if not val else 'Val'
-    progress = tqdm(total=len(loader), desc=f'{dname} Loss: | Err: ')
-    for batch in loader:
+    with torch.set_grad_enabled(not val):
 
-        x, y = tokenizer.tokenize(batch)
-        x = x.to(device=decoder.device)
-        y = y.to(device=decoder.device)
-        y = y.type(tensortype)
+        dname = 'Train' if not val else 'Val'
+        progress = tqdm(total=len(loader), desc=f'{dname} Loss: | Err: ')
+        for batch in loader:
 
-        pred, loss = train_step(decoder, criterion, optimizer, x, y, val)
+            x, y = tokenizer.tokenize(batch)
+            x = x.to(device=decoder.device)
+            y = y.to(device=decoder.device)
+            y = y.type(tensortype)
 
-        yhat = torch.argmax(pred, dim=1)
-        total_err += torch.sum(yhat!=y).item()
-        total_loss += loss.item()
-        count += x.shape[0]
+            pred, loss = train_step(decoder, criterion, optimizer, x, y, val)
 
-        desc = f'{dname} Loss: {total_loss/count:.10f} | Err: {total_err/count:.10f}'
-        progress.set_description(desc)
-        progress.update(1)
+            yhat = torch.argmax(pred, dim=1)
+            total_err += torch.sum(yhat!=y).item()
+            total_loss += loss.item()
+            count += x.shape[0]
 
-    if not val:
-        scheduler.step()
+            desc = f'{dname} Loss: {total_loss/count:.10f} | Err: {total_err/count:.10f}'
+            progress.set_description(desc)
+            progress.update(1)
+
+        if not val:
+            scheduler.step()
 
     return total_loss/count, total_err/count
 
@@ -132,6 +134,7 @@ def main():
     min_vloss = float('inf')
     for epoch in range(confs['epochs']):
 
+        print(f"\nEpoch {epoch+1}/{confs['epochs']}")
         tloss, terr = run_epoch(model, tloader, tok, loss, opt, sch)
         vloss, verr = run_epoch(model, dloader, tok, loss, opt, sch, val=True)
 

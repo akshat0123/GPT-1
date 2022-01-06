@@ -149,8 +149,27 @@ class BooksCorpusTokenizer:
 
         return X, Y
 
+
+    def start_seq(self) -> torch.Tensor:
+        """ Generate sequence for starting model decoding
+
+        Return:
+            (torch.Tensor): start token padded with pad tokens for a sequence of
+                            length 'self.window'
+        """
+
+        tokens = [self.start]
+        padding = [self.pad for i in range(self.window-1)]
+        tokens = padding + tokens
+
+        ids = torch.Tensor([self.vmap[t] for t in tokens])
+        ids = ids.type(torch.LongTensor)
+        seq = torch.nn.functional.one_hot(ids, self.vocab)[None, :, :]
+
+        return seq
+
     
-    def decode_line(self, x: torch.Tensor) -> List[str]:
+    def decode(self, x: torch.Tensor) -> List[str]:
         """ Turn one-hot vectors into tokens
 
         Args:
@@ -162,25 +181,6 @@ class BooksCorpusTokenizer:
         ids = torch.argmax(x, dim=1)
         tokens = [self.imap[i.item()] for i in ids]
         return tokens
-
-
-    def decode(self, x: torch.Tensor) -> List[List[str]]:
-        """ Turn batch of one-hot vectors into tokens
-
-        Args:
-            x: batch of one-hot vectors to retrieve tokens for
-
-        Return:
-            (List[List[str]]): list of lists of tokens for batch of one-hot
-                               vectors
-        """
-
-        lines = []
-
-        for i in range(x.shape[0]):
-            lines.append(self.decode_line(x[i]))
-
-        return lines
 
 
 class BooksCorpus(Dataset):
