@@ -18,7 +18,7 @@ configpath = 'confs/params.yml'
 
 
 def train_step(decoder: TransformerDecoder, criterion: CrossEntropyLoss,
-               optimizer: Adam, x: torch.Tensor, y: torch.tensor, 
+               optimizer: Adam, x: torch.Tensor, y: torch.Tensor, 
                val: bool) -> (torch.Tensor, torch.Tensor):
     """ Run one training step
 
@@ -34,7 +34,6 @@ def train_step(decoder: TransformerDecoder, criterion: CrossEntropyLoss,
         (torch.Tensor): model predicted labels
         (torch.Tensor): loss calculated for step
     """
-    
 
     if not val:
         optimizer.zero_grad()
