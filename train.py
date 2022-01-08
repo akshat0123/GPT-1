@@ -127,30 +127,46 @@ def main():
     sch = CosineAnnealingLR(optimizer=opt, **confs['scheduler'])
     loss = CrossEntropyLoss()
 
+    latest = os.path.join(confs['checkpoint'], 'latest.pt')
+    best = os.path.join(confs['checkpoint'], 'best.pt')
     writer = SummaryWriter()
+    epoch = 0
 
-    # Train model
+    if os.path.isfile(latest):
+        checkpoint = torch.load(latest)
+        opt.load_state_dict(checkpoint['optimizer'])
+        sch.load_state_dict(checkpoint['scheduler'])
+        model.load_state_dict(checkpoint['model'])
+        train_loss = checkpoint['train_loss']
+        val_loss = checkpoint['val_loss']
+        train_err = checkpoint['train_err']
+        val_err = checkpoint['val_err']
+        min_vloss = checkpoint['min_vloss']
+        epoch = checkpoint['epoch']
+
+    # train model
     min_vloss = float('inf')
-    for epoch in range(confs['epochs']):
+    for i in range(epoch, confs['epochs']):
 
-        print(f"\nEpoch {epoch+1}/{confs['epochs']}")
+        print(f"\nepoch {epoch+1}/{confs['epochs']}")
         tloss, terr = run_epoch(model, tloader, tok, loss, opt, sch)
         vloss, verr = run_epoch(model, dloader, tok, loss, opt, sch, val=True)
 
-        writer.add_scalar('Train Loss', tloss, epoch)
-        writer.add_scalar('Val Loss', vloss, epoch)
-        writer.add_scalar('Train Err', terr, epoch)
-        writer.add_scalar('Val Err', verr, epoch)
+        writer.add_scalar('train loss', tloss, i)
+        writer.add_scalar('val loss', vloss, i)
+        writer.add_scalar('train err', terr, i)
+        writer.add_scalar('val err', verr, i)
 
-        checkpoint = { 'optimizer': opt.state_dict(), 
-                       'scheduler': sch.state_dict(), 
-                       'model': model.state_dict(), 'train_loss': tloss,
-                       'val_loss': vloss, 'train_err': terr, 'val_err': verr,
-                       'epoch': epoch }
+        checkpoint = { 
+            'optimizer': opt.state_dict(), 'scheduler': sch.state_dict(),
+            'model': model.state_dict(), 'train_loss': tloss, 'val_loss': vloss,
+            'train_err': terr, 'val_err': verr, 'epoch': i+1, 
+            'min_vloss': min_vloss
+        }
 
         if vloss < min_vloss:
-            torch.save(checkpoint, os.path.join(confs['checkpoint'], 'best.pt'))
-        torch.save(checkpoint, os.path.join(confs['checkpoint'], 'latest.pt'))
+            torch.save(checkpoint, best)
+        torch.save(checkpoint, latest)
 
 
 if __name__ == '__main__':
