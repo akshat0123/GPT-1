@@ -129,7 +129,7 @@ def main():
 
     latest = os.path.join(confs['checkpoint'], 'latest.pt')
     best = os.path.join(confs['checkpoint'], 'best.pt')
-    writer = SummaryWriter()
+    writer = SummaryWriter('runs')
     epoch = 0
 
     if os.path.isfile(latest):
