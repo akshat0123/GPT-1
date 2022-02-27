@@ -64,7 +64,7 @@ class TransformerDecoder(Module):
             X = block(X)
 
         # Project to vocabulary space
-        X = softmax(self.linear(X), dim=2)[:, -1, :]
+        X = softmax(self.linear(X), dim=2)
 
         return X
 
