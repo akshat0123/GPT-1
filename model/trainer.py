@@ -88,12 +88,12 @@ class Trainer:
             batch: list of strings to run model on
         """
 
-        tokens = self.tokenizer.tokenize(batch)
+        tokens = self.tokenizer.tokenize(batch).to(self.model.device)
         output = self.model(tokens)
         yhat = torch.argmax(output, dim=2)[:, 1:]
         y = torch.argmax(tokens, dim=2)[:, 1:]
 
-        loss = self.loss_fn(output[:, 1:, :], tokens[:, 1:, :])
+        loss = self.loss_fn(output[:, 1:, :], output[:, 1:, :])
         self.total_err += torch.sum((yhat != y).float()).item()
         self.total_loss += loss.item()
         self.count += len(batch)
