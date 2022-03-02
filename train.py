@@ -1,6 +1,4 @@
-from functools import partial
-from textwrap import dedent
-import yaml, os
+import pickle, yaml
 
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.tensorboard import SummaryWriter
@@ -9,7 +7,6 @@ from torch.utils.data import DataLoader
 from torch.nn import CrossEntropyLoss 
 from tqdm import trange, tqdm
 from torch.optim import Adam
-import torch
 
 from model.tokenizer import BooksCorpusTokenizer
 from model.model import TransformerDecoder
@@ -47,8 +44,18 @@ def main():
 
     trainer = Trainer(model, tokenizer, optimizer, loss_fn, scheduler)
     for epoch in range(confs['epochs']):
-        trainer.train(tloader)
-        trainer.validate(dloader)
+
+        train_loss, train_err = trainer.train(tloader)
+        val_loss, val_err = trainer.validate(dloader)
+
+        checkpoint = trainer.get_checkpoint()        
+        checkpoint.update({
+            'train_loss': train_loss, 'train_err': train_err, 
+            'val_loss': val_loss, 'val_err': val_err, 'epoch': epoch,
+        })
+
+        checkpoint_path = f"{confs['checkpoint']}/{epoch}.pickle"
+        pickle.dump(checkpoint, open(checkpoint_path, 'wb'))
 
 
 if __name__ == '__main__':
