@@ -35,6 +35,7 @@ class Trainer:
         self.total_err = 0
         self.batch_err = 0
         self.count = 0
+        self.steps = 0
 
 
     def train(self, loader: torch.utils.data.DataLoader) -> (float, float):
@@ -114,9 +115,10 @@ class Trainer:
         self.total_err += torch.sum((yhat != y).float()).item()
         self.total_loss += loss.item()
         self.count += len(batch)
+        self.steps += 1
 
         self.batch_err = self.total_err / (self.count * y.shape[1])
-        self.batch_loss = self.total_loss / self.count
+        self.batch_loss = self.total_loss / self.steps
 
         return loss
 

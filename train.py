@@ -1,4 +1,4 @@
-import pickle, yaml
+import argparse, pickle, yaml
 
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.tensorboard import SummaryWriter
@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader
 from torch.nn import CrossEntropyLoss 
 from tqdm import trange, tqdm
 from torch.optim import Adam
+import torch
 
 from model.tokenizer import BooksCorpusTokenizer
 from model.model import TransformerDecoder
@@ -18,6 +19,11 @@ configpath = 'confs/params.yml'
 
 
 def main():
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-c', '--checkpoint_path', default=None)
+    args = parser.parse_args()
+    checkpoint_path = args.checkpoint_path
 
     confs = yaml.load(open(configpath, 'r'), Loader=yaml.SafeLoader)
 
@@ -42,9 +48,19 @@ def main():
     scheduler = CosineAnnealingLR(optimizer=optimizer, **confs['scheduler'])
     loss_fn = CrossEntropyLoss()
 
-    trainer = Trainer(model, tokenizer, optimizer, loss_fn, scheduler)
-    for epoch in range(confs['epochs']):
+    current_epoch = 0
+    if checkpoint_path is not None:
+        checkpoint = pickle.load(open(checkpoint_path, 'rb'))
+        optimizer.load_state_dict(checkpoint['optimizer'])
+        scheduler.load_state_dict(checkpoint['scheduler'])
+        model.load_state_dict(checkpoint['model'])
+        tokenizer = checkpoint['tokenizer']
+        current_epoch = checkpoint['epoch']
 
+    trainer = Trainer(model, tokenizer, optimizer, loss_fn, scheduler)
+    for epoch in range(current_epoch+1, confs['epochs']+1):
+
+        print(f'\nEpoch: {epoch}')
         train_loss, train_err = trainer.train(tloader)
         val_loss, val_err = trainer.validate(dloader)
 
