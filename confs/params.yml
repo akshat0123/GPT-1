@@ -8,8 +8,10 @@ tokenizer:
     window: 128
 
 dataset:
-    datapath: "/home/apgpu/Programs/Decoders/data/data.txt"
-    linecount: 3834456
+    #datapath: "/home/apgpu/Programs/Decoders/data/data.txt"
+    datapath: "/home/apgpu/Programs/Decoders/data/small.txt"
+    #linecount: 3834456
+    linecount: 100000
 
 loader:
     drop_last: True
@@ -19,21 +21,22 @@ loader:
 model:
     v: 40000
     w: 128
-    d: 384
+    d: 768 
     dk: 128
-    n_heads: 3
-    hidden: 1536
-    n_blocks: 3
+    n_heads: 6
+    hidden: 3072
+    n_blocks: 6
     dropout: 0.1
     device: 'cuda:0'
 
 optimizer:
-    lr: 0.00025
+    #lr: 0.00025
+    lr: 0.001
     weight_decay: 0.01
 
 scheduler:
-    T_max: 0.00025
+    T_max: 10
 
-epochs: 1
+epochs: 10
 
 checkpoint: "/home/apgpu/Programs/Decoders/checkpoints"
