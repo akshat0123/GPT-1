@@ -4,9 +4,10 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import random_split
 from torch.utils.data import DataLoader
-from torch.nn import CrossEntropyLoss 
+# from torch.nn import CrossEntropyLoss 
 from tqdm import trange, tqdm
 from torch.optim import Adam
+from torch.nn import BCELoss
 import torch
 
 from model.tokenizer import BooksCorpusTokenizer
@@ -46,7 +47,7 @@ def main():
     # Initialize optimizer, scheduler, and loss
     optimizer = Adam(model.parameters(), **confs['optimizer'])
     scheduler = CosineAnnealingLR(optimizer=optimizer, **confs['scheduler'])
-    loss_fn = CrossEntropyLoss()
+    loss_fn = BCELoss()
 
     current_epoch = 0
     if checkpoint_path is not None:
