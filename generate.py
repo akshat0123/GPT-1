@@ -10,10 +10,11 @@ configpath = 'confs/params.yml'
 
 def main():
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-c', '--checkpoint_path', required=True)
-    args = parser.parse_args()
-    checkpoint_path = args.checkpoint_path
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument('-c', '--checkpoint_path', required=True)
+    # args = parser.parse_args()
+    # checkpoint_path = args.checkpoint_path
+    checkpoint_path = '/home/akshat/Programs/Decoders/checkpoints/10.pickle' 
 
     confs = yaml.load(open(configpath, 'r'), Loader=yaml.SafeLoader)
 
@@ -24,7 +25,7 @@ def main():
     model.load_state_dict(checkpoint['model'])
     tokenizer = checkpoint['tokenizer']
 
-    sequencer = Sequencer(tokenizer, model, 100)
+    sequencer = Sequencer(tokenizer, model, 10)
 
     model.eval()
     for i in range(10):

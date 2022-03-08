@@ -1,17 +1,15 @@
 tokenizer:
-    countpath: "/home/apgpu/Programs/Decoders/data/counts.txt"
+    countpath: "/home/akshat/Programs/Decoders/data/counts.txt"
     start: "<START>"
     unk: "<UNK>"
     pad: "<PAD>"
     end: "<END>"
-    vocab: 40000
-    window: 128
+    vocab: 1000
+    window: 16
 
 dataset:
-    #datapath: "/home/apgpu/Programs/Decoders/data/data.txt"
-    datapath: "/home/apgpu/Programs/Decoders/data/small.txt"
-    #linecount: 3834456
-    linecount: 100000
+    datapath: "/home/akshat/Programs/Decoders/data/data.txt"
+    linecount: 1269
 
 loader:
     drop_last: True
@@ -19,19 +17,18 @@ loader:
     shuffle: True
 
 model:
-    v: 40000
-    w: 128
-    d: 768 
-    dk: 128
-    n_heads: 6
-    hidden: 3072
-    n_blocks: 6
+    v: 1000
+    w: 16
+    d: 128
+    dk: 64
+    n_heads: 2
+    hidden: 256
+    n_blocks: 2
     dropout: 0.1
-    device: 'cuda:0'
+    device: 'cpu'
 
 optimizer:
-    #lr: 0.00025
-    lr: 0.001
+    lr: 1.0
     weight_decay: 0.01
 
 scheduler:
@@ -39,4 +36,4 @@ scheduler:
 
 epochs: 10
 
-checkpoint: "/home/apgpu/Programs/Decoders/checkpoints"
+checkpoint: "/home/akshat/Programs/Decoders/checkpoints"

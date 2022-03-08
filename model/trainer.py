@@ -105,13 +105,8 @@ class Trainer:
         y = torch.argmax(tokens, dim=2)[:, 1:]
 
         batch_size, sequence_length, dimension = tokens.shape
-        labels = y.reshape((batch_size * (sequence_length - 1)))
-        output = output[:, 1:, :].reshape((
-            batch_size * (sequence_length-1),
-            dimension
-        ))
 
-        loss = self.loss_fn(output, labels)
+        loss = self.loss_fn(output[:, 1:, :], tokens[:, 1:, :])
         self.total_err += torch.sum((yhat != y).float()).item()
         self.total_loss += loss.item()
         self.count += len(batch)
