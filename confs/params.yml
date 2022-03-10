@@ -1,11 +1,4 @@
-tokenizer:
-    countpath: "/home/akshat/Programs/Decoders/data/counts.txt"
-    start: "<START>"
-    unk: "<UNK>"
-    pad: "<PAD>"
-    end: "<END>"
-    vocab: 1000
-    window: 16
+tokenizer: "/home/akshat/Programs/Decoders/checkpoints/tokenizer.pickle"
 
 dataset:
     datapath: "/home/akshat/Programs/Decoders/data/data.txt"
