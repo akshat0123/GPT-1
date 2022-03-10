@@ -18,7 +18,7 @@ def main():
     merges = args.merges
     trim = args.trim
 
-    datapaths = [datapath.strip() for datapath in open(inpath, 'r').readlines()][:1]
+    datapaths = [datapath.strip() for datapath in open(inpath, 'r').readlines()]
     bpt = BytePairTokenizer()
 
     for datapath in tqdm(datapaths):

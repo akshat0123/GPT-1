@@ -5,12 +5,6 @@ from tqdm import tqdm
 from model.tokenizer import BytePairTokenizer
 
 
-tpath = '/home/akshat/Programs/Decoders/checkpoints/tokenizer.pickle'
-ipath = '/home/akshat/Programs/Decoders/data/files.txt'
-opath = '/home/akshat/Programs/Decoders/data/data.txt'
-window_size = 512
-
-
 def main():
 
     parser = argparse.ArgumentParser()
@@ -24,7 +18,7 @@ def main():
     outpath = args.outpath
     window_size = args.window_size
 
-    datapaths = [datapath.strip() for datapath in open(inpath, 'r').readlines()][:10]
+    datapaths = [datapath.strip() for datapath in open(inpath, 'r').readlines()]
     bpt = BytePairTokenizer()
     bpt.load(tpath)
     window = []
