@@ -1,65 +1,49 @@
-""" 
-Script used to split dataset into a single file where each line contains a
-specific number of tokens (defined by 'window')
+import argparse
 
-Usage:
-    python split_dataset -i <input path> -o <output path> -w <window size>
-"""
-import argparse, os
-
-from spacy.tokenizer import Tokenizer
-from spacy.lang.en import English
 from tqdm import tqdm
+
+from model.tokenizer import BytePairTokenizer
+
+
+tpath = '/home/akshat/Programs/Decoders/checkpoints/tokenizer.pickle'
+ipath = '/home/akshat/Programs/Decoders/data/files.txt'
+opath = '/home/akshat/Programs/Decoders/data/data.txt'
+window_size = 512
 
 
 def main():
 
     parser = argparse.ArgumentParser()
+    parser.add_argument('-c', '--checkpoint', required=True)
     parser.add_argument('-i', '--inpath', required=True)
     parser.add_argument('-o', '--outpath', required=True)
-    parser.add_argument('-w', '--window', type=int, required=True)
+    parser.add_argument('-w', '--window_size', required=True, type=int)
     args = parser.parse_args()
+    checkpoint = args.checkpoint
     inpath = args.inpath
     outpath = args.outpath
-    window = args.window + 1
+    window_size = args.window_size
 
-    bookfiles = [bookfile.strip() for bookfile in open(inpath, 'r').readlines()]
-    tokenizer = Tokenizer(English().vocab)
-    counts = {}
+    datapaths = [datapath.strip() for datapath in open(inpath, 'r').readlines()][:10]
+    bpt = BytePairTokenizer()
+    bpt.load(tpath)
+    window = []
 
-    countfile = os.path.join(outpath, 'counts.txt')
-    datafile = os.path.join(outpath, 'data.txt')
+    with open(outpath, 'w') as outfile:
+        for datapath in tqdm(datapaths):
 
-    with open(datafile, 'w') as outfile:
-        for bookfile in tqdm(bookfiles):
+            lines = [line.strip().split() for line in open(datapath, 'r').readlines()]
 
-            pars = [
-                '<START> ' + l.strip() + ' <END>' for l \
-                in open(bookfile, 'r').readlines() \
-                if len(l.strip()) > 0
-            ]
+            for line in lines:
 
-            tokens = []
-            for par in pars:
-                tokens += [t.text.strip() for t in tokenizer(par)]
+                if len(line) > 0:
+                    line = ' '.join(line)
+                    tokenized = bpt.eol + bpt.tokenize(line)
+                    window += tokenized.split(' ')
 
-            for token in tokens:
-                if token in counts:
-                    counts[token] += 1
-                else:
-                    counts[token] = 1
-
-            start, end = 0, window
-            while start < len(tokens):
-                line = ' '.join(tokens[start:end])
-                outfile.write(line + '\n')
-                start += window
-                end += window
-
-    counts = sorted(counts.items(), key=lambda x: x[1], reverse=True)
-    with open(countfile, 'w') as outfile:
-        for word, count in counts:
-            outfile.write(f'{word}\t{count}' + '\n')
+                if len(window) >= window_size:
+                    outfile.write(' '.join(window[:window_size]) + '\n')
+                    window = window[window_size:]
 
 
 if __name__ == '__main__':
