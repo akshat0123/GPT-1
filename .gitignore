@@ -1,4 +1,5 @@
 **/__pycache__
+data/tokenized/*.txt
 data/*.txt
 **/*.pt
 runs/*

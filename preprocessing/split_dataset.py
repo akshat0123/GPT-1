@@ -1,3 +1,5 @@
+from multiprocessing import Pool
+from itertools import repeat
 import argparse
 
 from tqdm import tqdm
@@ -5,39 +7,59 @@ from tqdm import tqdm
 from model.tokenizer import BytePairTokenizer
 
 
+def tokenize_file(tokenizer, inpath, outpath, window_size):
+
+    lines = [line.strip().split() for line in open(inpath, 'r').readlines()]
+    window = []
+
+    with open(outpath, 'w') as outfile:
+        for line in lines:
+
+            if len(line) > 0:
+                line = ' '.join(line)
+                tokenized = tokenizer.eol + tokenizer.tokenize(line)
+                window += tokenized.split(' ')
+
+            if len(window) >= window_size:
+                outfile.write(' '.join(window[:window_size]) + '\n')
+                window = window[window_size:]
+
+
 def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--checkpoint', required=True)
-    parser.add_argument('-i', '--inpath', required=True)
-    parser.add_argument('-o', '--outpath', required=True)
+    parser.add_argument('-i', '--infile', required=True)
+    parser.add_argument('-o', '--outdir', required=True)
     parser.add_argument('-w', '--window_size', required=True, type=int)
+    parser.add_argument('-j', '--jobs', required=True, type=int)
     args = parser.parse_args()
     checkpoint = args.checkpoint
-    inpath = args.inpath
-    outpath = args.outpath
+    infile = args.infile
+    outdir = args.outdir
     window_size = args.window_size
+    jobs = args.jobs
 
-    datapaths = [datapath.strip() for datapath in open(inpath, 'r').readlines()]
+    inpaths = [inpath.strip() for inpath in open(infile, 'r').readlines()]
+    outpaths = [f'{outdir}/' + inpath.split('/')[-1] for inpath in inpaths]
     bpt = BytePairTokenizer()
-    bpt.load(tpath)
-    window = []
+    bpt.load(checkpoint)
 
-    with open(outpath, 'w') as outfile:
-        for datapath in tqdm(datapaths):
+    current_index = 0
+    progress = tqdm(total=len(inpaths))
+    while current_index < len(inpaths):
 
-            lines = [line.strip().split() for line in open(datapath, 'r').readlines()]
+        start = current_index
+        end = current_index + jobs
 
-            for line in lines:
+        with Pool(jobs) as pool:
 
-                if len(line) > 0:
-                    line = ' '.join(line)
-                    tokenized = bpt.eol + bpt.tokenize(line)
-                    window += tokenized.split(' ')
+            ingroup = inpaths[start:end]
+            outgroup = outpaths[start:end]
 
-                if len(window) >= window_size:
-                    outfile.write(' '.join(window[:window_size]) + '\n')
-                    window = window[window_size:]
+            pool.starmap(tokenize_file, zip(repeat(bpt), ingroup, outgroup, repeat(window_size)))
+            current_index += jobs
+            progress.update(jobs)
 
 
 if __name__ == '__main__':
