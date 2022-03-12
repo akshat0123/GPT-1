@@ -1,0 +1,11 @@
+tokenizer: 
+    path: "/home/akshat/Programs/Decoders/checkpoints/tokenizer.pickle"
+
+dataset:
+    datapath: '/home/akshat/Programs/Decoders/data/data.txt'
+    linecount: 4569
+
+loader:
+    drop_last: True
+    batch_size: 32
+    shuffle: True

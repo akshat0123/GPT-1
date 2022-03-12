@@ -3,6 +3,7 @@ from typing import Tuple, Dict, List
 import pickle
 
 from tqdm import trange, tqdm
+import torch
 
 from abc import ABC, abstractmethod
 
@@ -118,13 +119,13 @@ class BytePairTokenizer(Tokenizer):
             (Tuple[str, str]): maximum frequency byte pair
         """
 
-        pairs = {}
+        pairs = defaultdict(int)
         for word in self.corpus.keys():
             tokens = word.split(' ')
 
             for i in range(1, len(tokens)):
                 pair = tuple(tokens[i-1:i+1])
-                pairs[pair] = pairs[pair] + 1 if pair in pairs else 1
+                pairs[pair] += 1
 
         maxpair = None
         if len(pairs) > 0:
@@ -133,8 +134,8 @@ class BytePairTokenizer(Tokenizer):
         return maxpair
 
 
-    def tokenize(self, token: str) -> str:
-        """ Tokenize provided token into whitespace-separated bytes
+    def segment(self, token: str) -> str:
+        """ Segment provided token into whitespace-separated bytes
 
         Args:
             token: string to tokenize
@@ -147,7 +148,7 @@ class BytePairTokenizer(Tokenizer):
 
         while True:
             chars = token.split(' ')
-            pairs = self.get_char_pairs(chars)
+            pairs = self.get_char_pair_freqs(chars)
 
             if len(pairs) == 0:
                 break
@@ -159,34 +160,85 @@ class BytePairTokenizer(Tokenizer):
         return token
 
 
-    def to_ids(self, batch, window_size, tokenized=False):
+    def tokenize(self, batch: List[str], window_size: int, 
+                     segmented: bool=False) -> torch.Tensor:
+        """ Transform batch of lines into tensor of one-hot tokens
+
+        Args:
+            batch: list of lines
+            window_size: number of tokens to consider (will slice/pad to this
+                         length)
+            segmented: flag indicating whether files have already been segmented
+                       or not
+
+        Returns:
+            (torch.Tensor): tensor of one-hot vectors for each token in each
+                            line
+        """
 
         batch_ids = []
+        vocab_size = len(self.vocab_to_index)
+
         for line in batch:
 
             tokens = line.split(' ')
             if not tokenized:
-                tokens = [self.tokenize(token) for token in tokens]
+                tokens = [self.segment(token) for token in tokens]
 
-            ids = [] 
-            for token in tokens:
-                if token in self.vocab_to_index:
-                    ids.append(self.vocab_to_index[token])
-
-                else:
-                    ids.append(self.vocab_to_index[self.unk])
-
-            ids = ids[:window_size]
-
-            if len(ids) < window_size:
-                ids += [self.vocab_to_index[self.pad] for i in range(window_size - len(ids))]
-
+            ids = self.tokens_to_ids(tokens)
+            ids = self.pad_ids(ids, window_size)
             batch_ids.append(ids)
+
+        batch_ids = torch.Tensor(batch_ids).type(torch.LongTensor)
+        batch_ids = torch.nn.functional.one_hot(batch_ids, vocab_size)
+        batch_ids = batch_ids.type(torch.FloatTensor)
 
         return batch_ids
 
 
-    def get_char_pairs(self, chars: List[str]) -> Dict[Tuple[int, int], int]:
+    def tokens_to_ids(self, tokens: List[str]) -> List[int]:
+        """ Turn list of tokens into list of ids
+
+        Args:
+            tokens: list of tokens to transform
+
+        Return:
+            (List[int]): list of corresponding token ids
+        """
+
+        ids = [] 
+        for token in tokens:
+            if token in self.vocab_to_index:
+                ids.append(self.vocab_to_index[token])
+
+            else:
+                ids.append(self.vocab_to_index[self.unk])
+
+        return ids
+
+
+    def pad_ids(self, ids: List[int], size: int) -> List[int]:
+        """ Pad list of ids to specified length, cuts list if too long
+
+        Args:
+            ids: list of ids to pad
+            size: length to pad/slice to
+
+        Return:
+            (List[int]): padded list of ids
+        """
+
+        ids = ids[:size]
+        difference = size - len(ids) 
+
+        if len(ids) < size:
+            ids += [self.vocab_to_index[self.pad] for i in range(difference)]
+
+        return ids
+
+
+    def get_char_pair_freqs(self, chars: List[str]) -> \
+                            Dict[Tuple[int, int], int]:
         """ Get indices of all byte pairs in sequence of bytes and return
             dictionary mapping indicies of byte pairs and their frequency in the
             vocabulary
