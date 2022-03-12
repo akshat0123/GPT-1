@@ -9,16 +9,16 @@ from model.tokenizer import BytePairTokenizer
 
 def tokenize_file(tokenizer, inpath, outpath, window_size):
 
-    lines = [line.strip().split() for line in open(inpath, 'r').readlines()]
+    lines = [line.strip().split(' ') for line in open(inpath, 'r').readlines()]
     window = []
 
     with open(outpath, 'w') as outfile:
         for line in lines:
 
             if len(line) > 0:
-                line = ' '.join(line)
-                tokenized = tokenizer.eol + tokenizer.tokenize(line)
-                window += tokenized.split(' ')
+                tokenized = [tokenizer.tokenize(token) for token in line]
+                tokenized = [tokenizer.eol] + tokenized
+                window += tokenized
 
             if len(window) >= window_size:
                 outfile.write(' '.join(window[:window_size]) + '\n')

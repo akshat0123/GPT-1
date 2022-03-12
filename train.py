@@ -2,9 +2,7 @@ import argparse, pickle, yaml
 
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.tensorboard import SummaryWriter
-from torch.utils.data import random_split
-from torch.utils.data import DataLoader
-# from torch.nn import CrossEntropyLoss 
+from torch.utils.data import random_split, DataLoader
 from tqdm import trange, tqdm
 from torch.optim import Adam
 from torch.nn import BCELoss

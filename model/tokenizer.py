@@ -73,13 +73,15 @@ class BytePairTokenizer(Tokenizer):
 
         keys = list(self.vocab.keys())
         for i in range(len(keys)):
-            self.vocab_to_index[keys[i]] = i
-            self.index_to_vocab[i] = keys[i]
+            pair = ''.join(keys[i])
+            self.vocab_to_index[pair] = i
+            self.index_to_vocab[i] = pair
 
         for token in [self.eow, self.eol, self.unk, self.pad]:
             idx = len(self.vocab_to_index)
-            self.vocab_to_index[token] = idx
-            self.index_to_vocab[idx] = token
+            pair = ''.join(token)
+            self.vocab_to_index[pair] = idx
+            self.index_to_vocab[idx] = pair
 
 
     def merge_max_pair(self) -> bool:
@@ -155,6 +157,33 @@ class BytePairTokenizer(Tokenizer):
                 token = self.merge_chars(chars, idx1, idx2)
 
         return token
+
+
+    def to_ids(self, batch, window_size, tokenized=False):
+
+        batch_ids = []
+        for line in batch:
+
+            tokens = line.split(' ')
+            if not tokenized:
+                tokens = [self.tokenize(token) for token in tokens]
+
+            ids = [] 
+            for token in tokens:
+                if token in self.vocab_to_index:
+                    ids.append(self.vocab_to_index[token])
+
+                else:
+                    ids.append(self.vocab_to_index[self.unk])
+
+            ids = ids[:window_size]
+
+            if len(ids) < window_size:
+                ids += [self.vocab_to_index[self.pad] for i in range(window_size - len(ids))]
+
+            batch_ids.append(ids)
+
+        return batch_ids
 
 
     def get_char_pairs(self, chars: List[str]) -> Dict[Tuple[int, int], int]:
