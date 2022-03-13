@@ -19,22 +19,26 @@ def main():
     trim = args.trim
 
     datapaths = [datapath.strip() for datapath in open(inpath, 'r').readlines()]
-    bpt = BytePairTokenizer()
+    tokenizer = BytePairTokenizer()
 
     for datapath in tqdm(datapaths):
-        data = open(datapath, 'r').read().split(' ')
-        bpt.add_to_corpus(data)
-        bpt.add_to_vocab(data)
+        lines = open(datapath, 'r').readlines()
+        lines = [line.strip() for line in lines]
+        lines = [line for line in lines if len(line) > 0]
 
-    bpt.trim_corpus(trim)
+        for line in lines:
+            tokenizer.add_line_to_corpus(line)
+            tokenizer.add_line_to_vocab(line)
+
+    tokenizer.trim_corpus(trim)
 
     for i in trange(merges):
-        success = bpt.merge_max_pair()
+        success = tokenizer.merge_max_pair()
         if not success: 
             break
 
-    bpt.build_indices()
-    bpt.save(checkpoint)
+    tokenizer.build_indices()
+    tokenizer.save(checkpoint)
 
 
 if __name__ == '__main__':

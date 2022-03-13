@@ -1,11 +1,32 @@
+window_size: &window_size 128
+vocab_size: &vocab_size 2393
+device: &device 'cpu'
+
+
 tokenizer: 
     path: "/home/akshat/Programs/Decoders/checkpoints/tokenizer.pickle"
 
 dataset:
     datapath: '/home/akshat/Programs/Decoders/data/data.txt'
-    linecount: 4569
+    linecount: 29577
+
+collator:
+    window_size: *window_size
+    vocab_size: *vocab_size
+    device: *device
 
 loader:
     drop_last: True
-    batch_size: 32
+    batch_size: 8 
     shuffle: True
+
+model:
+    vocab_size: *vocab_size
+    embedding_size: 64
+    window_size: *window_size
+    d_k: 16
+    d_v: 16
+    n_heads: 4
+    hidden: 256
+    n_blocks: 4
+    device: *device
