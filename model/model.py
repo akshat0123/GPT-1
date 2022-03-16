@@ -23,9 +23,9 @@ class TransformerDecoder(Module):
             device: device to put model on
         """
         super().__init__()
-        self.pids = Tensor([i for i in range(window_size)]).to(device)
+        self.pids = Tensor([i for i in range(window_size + 1)]).to(device)
         self.embedding = Embedding(vocab_size, embedding_size, device)
-        self.position = Embedding(window_size, embedding_size, device)
+        self.position = Embedding(window_size + 1, embedding_size, device)
 
         self.blocks = ModuleList([
             TransformerBlock(embedding_size, d_k, d_v, n_heads, hidden, device) \
@@ -44,7 +44,7 @@ class TransformerDecoder(Module):
         for block in self.blocks:
             X = block(X)
 
-        return self.softmax(self.w(X))
+        return self.softmax(self.w(X))[:, -1, :]
 
 
 class TransformerBlock(Module):

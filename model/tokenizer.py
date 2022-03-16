@@ -171,6 +171,14 @@ class BytePairTokenizer:
         return self.eow
 
 
+    def get_pad_token(self) -> str:
+        return self.pad
+
+
+    def get_token_id(self, token: str):
+        return self.vocab_to_index[token]
+
+
     def get_token_ids(self, token: str) -> List[int]:
         """ Get list of ids for bytes in token
 
@@ -244,19 +252,3 @@ class BytePairTokenizer:
                 pairs[pair] += self.vocab[pair]
 
         return pairs
-
-
-    def pad_ids(self, ids: List[int], size: int) -> List[int]:
-        """ Pad list of ids to specified size
-
-        Args:
-            ids: list of ids to pad
-            size: length to pad list to
-
-        Return:
-            (List[int]): padded list of token ids
-        """
-
-        diff = size - len(ids)
-        pads = [self.vocab_to_index[self.pad] for i in range(diff)]
-        return ids + pads

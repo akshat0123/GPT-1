@@ -1,5 +1,5 @@
-window_size: &window_size 128
-vocab_size: &vocab_size 2393
+window_size: &window_size 16
+vocab_size: &vocab_size 4614
 device: &device 'cpu'
 
 
@@ -8,7 +8,7 @@ tokenizer:
 
 dataset:
     datapath: '/home/akshat/Programs/Decoders/data/data.txt'
-    linecount: 29577
+    linecount: 2694069
 
 collator:
     window_size: *window_size
@@ -18,15 +18,27 @@ collator:
 loader:
     drop_last: True
     batch_size: 8 
-    shuffle: True
+    shuffle: True 
 
 model:
     vocab_size: *vocab_size
-    embedding_size: 64
+    embedding_size: 32
     window_size: *window_size
     d_k: 16
     d_v: 16
-    n_heads: 4
-    hidden: 256
-    n_blocks: 4
+    n_heads: 2
+    hidden: 128
+    n_blocks: 1
     device: *device
+
+optimizer:
+    lr: 0.001
+    weight_decay: 0.01
+
+scheduler:
+    T_max: 1
+
+epochs: 1
+
+checkpoint: "/home/akshat/Programs/Decoders/checkpoints"
+

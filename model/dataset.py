@@ -83,7 +83,11 @@ class BytePairCollator:
         Returns:
             (Tensor): one-hot batch of token ids 
         """
-        X = empty(len(batch), self.window_size, self.vocab_size)
+        X = empty(
+            len(batch), 
+            self.window_size + 1, 
+            self.vocab_size
+        )
 
         for i in range(len(batch)):
             line = Tensor([int(x) for x in batch[i].split(' ')])
