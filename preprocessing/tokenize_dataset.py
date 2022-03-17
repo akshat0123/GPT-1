@@ -28,18 +28,21 @@ def generate_outpaths(inpaths: List[str], outdir: str) -> List[str]:
     return outpaths
 
 
-def tokenize_file_lines(tokenizer: 'Tokenizer', inpath: str) -> List[List[str]]:
+def tokenize_file_lines(tokenizer: 'Tokenizer', inpath: str, 
+                        splitter: str) -> List[List[str]]:
     """ Tokenize file lines to ids
 
     Args:
         tokenizer: tokenizer for file segmentation
         inpath: path to file to segment
+        splitter: string to split lines on
 
     Returns:
         (List[List[str]]): list of ids for tokens in each line of the file
     """
 
-    lines = [line.strip() for line in open(inpath).readlines()]
+    lines = open(inpath, 'r').read()
+    lines = [line.strip() for line in lines.split(splitter)]
     lines = [line for line in lines if len(line) > 0]
     ids = []
 
@@ -57,7 +60,7 @@ def tokenize_file_lines(tokenizer: 'Tokenizer', inpath: str) -> List[List[str]]:
     return ids
 
 
-def write_tokenized(tokenizer, inpath, outpath, window_size) -> None:
+def write_tokenized(tokenizer, inpath, outpath, window_size, splitter) -> None:
     """ Tokenize file and write tokenized ids to new location with "window_size"
         padding before each line
 
@@ -66,9 +69,10 @@ def write_tokenized(tokenizer, inpath, outpath, window_size) -> None:
         inpath: path to file to segment
         outpath: path to place new file of ids
         window_size: length of each line in tokens
+        splitter: string to split lines on
     """
 
-    line_ids = tokenize_file_lines(tokenizer, inpath)
+    line_ids = tokenize_file_lines(tokenizer, inpath, splitter)
     pad = tokenizer.get_pad_token()
     pad_idx = str(tokenizer.get_token_id(pad))
     padding = [pad_idx for i in range(window_size)]
@@ -96,12 +100,14 @@ def main():
     parser.add_argument('-o', '--outdir', required=True)
     parser.add_argument('-w', '--window_size', type=int, required=True)
     parser.add_argument('-j', '--jobs', type=int, required=True)
+    parser.add_argument('-s', '--splitter', type=str, default='\n')
     args = parser.parse_args()
     checkpoint = args.checkpoint
     infile = args.infile
     outdir = args.outdir
     window_size = args.window_size
     jobs = args.jobs
+    splitter = args.splitter
 
     tokenizer = BytePairTokenizer()
     tokenizer.load(checkpoint)
@@ -121,7 +127,14 @@ def main():
             ingroup = inpaths[start:end]
             outgroup = outpaths[start:end]
 
-            pool.starmap(write_tokenized, zip(repeat(tokenizer), ingroup, outgroup, repeat(window_size)))
+            pool.starmap(
+                write_tokenized, 
+                zip(repeat(tokenizer), 
+                ingroup, 
+                outgroup, 
+                repeat(window_size), 
+                repeat(splitter))
+            )
             current_index += jobs
             progress.update(jobs)
 

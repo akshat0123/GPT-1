@@ -1,5 +1,5 @@
 from torch.nn import ModuleList, Identity, Dropout, Softmax, Linear, Module, ReLU
-from torch import Tensor, einsum, square, mean, sqrt, tril, cat
+from torch import Tensor, einsum, square, mean, ones, sqrt, tril, cat
 from torch import sum as sum_
 
 
@@ -146,7 +146,8 @@ class SelfAttentionLayer(Module):
     def forward(self, X):
         Q, K, V = self.wq(X), self.wk(X), self.wv(X)
         QK = einsum('ijk,ilk->ijl', Q, K) / self.sqrt_dk
-        sQK = tril(self.softmax(QK))
+        mask = tril(ones(QK.shape))
+        sQK = self.softmax(QK.masked_fill(mask==0, float('-inf')))
         sA = einsum('ijk,ikl->ijl', sQK, V)
         return sA
 
