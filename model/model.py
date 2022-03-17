@@ -1,4 +1,4 @@
-from torch.nn import ModuleList, Identity, Softmax, Linear, Module, ReLU
+from torch.nn import ModuleList, Identity, Dropout, Softmax, Linear, Module, ReLU
 from torch import Tensor, einsum, square, mean, sqrt, tril, cat
 from torch import sum as sum_
 
@@ -8,7 +8,7 @@ class TransformerDecoder(Module):
 
     def __init__(self, vocab_size: int, embedding_size: int, window_size: int,
                  d_k: int, d_v: int, n_heads: int, hidden: int, n_blocks: int,
-                 device: str):
+                 dropout: float, device: str):
         """ Initialized tranformer-based decoder
 
         Args:
@@ -20,6 +20,7 @@ class TransformerDecoder(Module):
             n_heads: number of self-attention heads 
             hidden: number of hidden units in feed forward layers
             n_blocks: number of transformer blocks
+            dropout: dropout amount
             device: device to put model on
         """
         super().__init__()
@@ -28,7 +29,7 @@ class TransformerDecoder(Module):
         self.position = Embedding(window_size + 1, embedding_size, device)
 
         self.blocks = ModuleList([
-            TransformerBlock(embedding_size, d_k, d_v, n_heads, hidden, device) \
+            TransformerBlock(embedding_size, d_k, d_v, n_heads, hidden, dropout, device) \
             for i in range(n_blocks)
         ])
         
@@ -44,13 +45,13 @@ class TransformerDecoder(Module):
         for block in self.blocks:
             X = block(X)
 
-        return self.softmax(self.w(X))[:, -1, :]
+        return self.w(X)[:, -1, :]
 
 
 class TransformerBlock(Module):
 
 
-    def __init__(self, d_in, d_k, d_v, n_heads, hidden, device):
+    def __init__(self, d_in, d_k, d_v, n_heads, hidden, dropout, device):
         """ Initialized tranformer block
 
         Args:
@@ -59,6 +60,7 @@ class TransformerBlock(Module):
             d_v: self-attention value size 
             n_heads: number of self-attention heads 
             hidden: number of hidden units in feed forward layers
+            dropout: dropout amount
             device: device to put model on
         """
         super().__init__()
@@ -66,11 +68,13 @@ class TransformerBlock(Module):
         self.layer_norm = LayerNorm()
         self.ffl1 = PositionWiseFFL(d_in, hidden, ReLU(), device)
         self.ffl2 = PositionWiseFFL(hidden, d_in, Identity(), device)
+        self.d1 = Dropout(p=dropout)
+        self.d2 = Dropout(p=dropout)
 
 
     def forward(self, X):
-        Z = self.layer_norm(X + self.attention(X))
-        Y = self.layer_norm(Z + self.ffl2(self.ffl1(Z)))
+        Z = self.layer_norm(X + self.d1(self.attention(X)))
+        Y = self.layer_norm(Z + self.d2(self.ffl2(self.ffl1(Z))))
         return Y
 
 

@@ -1,14 +1,14 @@
 window_size: &window_size 16
-vocab_size: &vocab_size 4614
-device: &device 'cpu'
+vocab_size: &vocab_size 5113
+device: &device 'cuda:0'
 
 
 tokenizer: 
-    path: "/home/akshat/Programs/Decoders/checkpoints/tokenizer.pickle"
+    path: "/home/apgpu/Programs/Decoders/checkpoints/tokenizer.pickle"
 
 dataset:
-    datapath: '/home/akshat/Programs/Decoders/data/data.txt'
-    linecount: 2694069
+    datapath: '/home/apgpu/Programs/Decoders/data/data.txt'
+    linecount: 2679130
 
 collator:
     window_size: *window_size
@@ -17,22 +17,23 @@ collator:
 
 loader:
     drop_last: True
-    batch_size: 8 
+    batch_size: 1028
     shuffle: True 
 
 model:
     vocab_size: *vocab_size
-    embedding_size: 32
+    embedding_size: 128
     window_size: *window_size
-    d_k: 16
-    d_v: 16
+    d_k: 64
+    d_v: 64
     n_heads: 2
-    hidden: 128
-    n_blocks: 1
+    hidden: 256 
+    n_blocks: 2
+    dropout: 0.1
     device: *device
 
 optimizer:
-    lr: 0.001
+    lr: 0.000001
     weight_decay: 0.01
 
 scheduler:
@@ -40,5 +41,4 @@ scheduler:
 
 epochs: 1
 
-checkpoint: "/home/akshat/Programs/Decoders/checkpoints"
-
+checkpoint: "/home/apgpu/Programs/Decoders/checkpoints"

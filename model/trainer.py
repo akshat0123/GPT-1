@@ -103,7 +103,7 @@ class Trainer:
         self.count += len(batch)
         self.steps += 1
 
-        self.batch_err = self.total_err / (self.count * y.shape[0])
+        self.batch_err = self.total_err / self.count
         self.batch_loss = self.total_loss / self.steps
 
         return loss

@@ -15,7 +15,7 @@ def main():
     # parser.add_argument('-c', '--checkpoint_path', required=True)
     # args = parser.parse_args()
     # checkpoint_path = args.checkpoint_path
-    checkpoint_path = '/home/akshat/Programs/Decoders/checkpoints/1.pickle'
+    checkpoint_path = '/home/apgpu/Programs/Decoders/checkpoints/1.pickle'
 
     confs = yaml.load(open(configpath, 'r'), Loader=yaml.SafeLoader)
 
@@ -30,7 +30,7 @@ def main():
 
     model.eval()
 
-    vocab_size = 4614
+    vocab_size = 5113
     window_size = 16
     k = 10
 
@@ -39,27 +39,22 @@ def main():
 
     start, end = 0, window_size
 
-    for k in range(10):
+    for k in range(20):
         seq = sequence[start:end]
         print(seq)
 
         seq_ids = torch.Tensor([tokenizer.vocab_to_index[t] for t in seq])
         seq_ids = seq_ids.type(torch.LongTensor)
         seq_ids = torch.nn.functional.one_hot(seq_ids[None, :], num_classes=vocab_size)
-        seq_ids = seq_ids.type(torch.FloatTensor)
+        seq_ids = seq_ids.type(torch.FloatTensor).to(device=model.device)
 
-        pred = model(seq_ids)[0]
-        pred_id = torch.argsort(pred, dim=0, descending=True)[0].item()
-        # pred_id = torch.argsort(pred, dim=0, descending=True)[:10]
-        # pred_id = pred_id[torch.randint(10, (1,)).item()].item()
+        pred = model(seq_ids)
+        pred_id = torch.argsort(pred, dim=1, descending=True)[0, 0].item()
         pred_token = tokenizer.index_to_vocab[pred_id]
 
         sequence.append(pred_token)
         start += 1
         end += 1
-
-    
-
 
 
 if __name__ == '__main__':

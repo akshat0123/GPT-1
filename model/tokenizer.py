@@ -81,9 +81,13 @@ class BytePairTokenizer:
             for word in words:
 
                 if re.search(search, word) is not None:
-                    replacement = re.sub(search, replace, word).strip()
-                    self.corpus[replacement] = self.corpus[word]
-                    del(self.corpus[word])
+                    try:
+                        replacement = re.sub(search, replace, word).strip()
+                        self.corpus[replacement] = self.corpus[word]
+                        del(self.corpus[word])
+
+                    except:
+                        del(self.corpus[word])
 
         return success
 

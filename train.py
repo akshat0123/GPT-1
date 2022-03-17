@@ -55,6 +55,7 @@ def main():
         tokenizer = checkpoint['tokenizer']
         current_epoch = checkpoint['epoch']
 
+    model.train()
     trainer = Trainer(model, tokenizer, optimizer, loss_fn, scheduler)
     for epoch in range(current_epoch+1, confs['epochs']+1):
 
