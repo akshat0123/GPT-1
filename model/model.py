@@ -1,4 +1,4 @@
-from torch.nn import ModuleList, Identity, Dropout, Softmax, Linear, Module, ReLU
+from torch.nn import ModuleList, Identity, Dropout, Softmax, Linear, Module, GELU 
 from torch import Tensor, einsum, square, mean, ones, sqrt, tril, cat
 from torch import sum as sum_
 
@@ -34,7 +34,6 @@ class TransformerDecoder(Module):
         ])
         
         self.w = Linear(embedding_size, vocab_size).to(device)
-        self.softmax = Softmax(dim=2).to(device)
         self.device = device
 
 
@@ -66,7 +65,7 @@ class TransformerBlock(Module):
         super().__init__()
         self.attention = MultiHeadAttentionLayer(d_in, d_k, d_v, n_heads, device)
         self.layer_norm = LayerNorm()
-        self.ffl1 = PositionWiseFFL(d_in, hidden, ReLU(), device)
+        self.ffl1 = PositionWiseFFL(d_in, hidden, GELU(), device)
         self.ffl2 = PositionWiseFFL(hidden, d_in, Identity(), device)
         self.d1 = Dropout(p=dropout)
         self.d2 = Dropout(p=dropout)
@@ -141,12 +140,13 @@ class SelfAttentionLayer(Module):
         self.wv = Linear(d_in, d_v).to(device)
         self.sqrt_dk = sqrt(Tensor([d_k])).to(device)
         self.softmax = Softmax(dim=2)
+        self.device = device
 
 
     def forward(self, X):
         Q, K, V = self.wq(X), self.wk(X), self.wv(X)
         QK = einsum('ijk,ilk->ijl', Q, K) / self.sqrt_dk
-        mask = tril(ones(QK.shape))
+        mask = tril(ones(QK.shape)).to(device=self.device)
         sQK = self.softmax(QK.masked_fill(mask==0, float('-inf')))
         sA = einsum('ijk,ikl->ijl', sQK, V)
         return sA

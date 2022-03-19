@@ -28,8 +28,6 @@ def main():
     tokenizer.load(**confs['tokenizer'])
     dataset = BytePairDataset(**confs['dataset'])
 
-    print(len(tokenizer.vocab_to_index))
-    
     # Split into train and dev datasets
     train_size = int(0.9 * len(dataset))
     dev_size = len(dataset) - train_size

@@ -1,5 +1,6 @@
 import argparse, pickle, yaml
 
+from tqdm import trange
 import torch
 
 from model.tokenizer import BytePairTokenizer
@@ -30,16 +31,16 @@ def main():
 
     model.eval()
 
-    vocab_size = 5113
+    vocab_size = 16082
     window_size = 16
-    k = 300
+    k = 3
 
     sequence = [tokenizer.get_pad_token() for i in range(window_size-1)]
     sequence += [tokenizer.get_end_of_line_token()]
 
     start, end = 0, window_size
 
-    for i in range(10):
+    for i in trange(20):
         seq = sequence[start:end]
 
         seq_ids = torch.Tensor([tokenizer.vocab_to_index[t] for t in seq])
@@ -49,7 +50,7 @@ def main():
 
         pred = model(seq_ids)[0]
         pred_id = torch.argsort(pred, dim=0, descending=True)[:k]
-        pred_id = pred_id[torch.randint(10, (1,)).item()].item()
+        pred_id = pred_id[torch.randint(k, (1,)).item()].item()
         pred_token = tokenizer.index_to_vocab[pred_id]
 
         sequence.append(pred_token)

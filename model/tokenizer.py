@@ -74,7 +74,6 @@ class BytePairTokenizer:
             search = r'(^|\s)' + re.escape(' '.join(maxpair)) + r'(\s|$)'
             replace = ' ' + ''.join(maxpair) + ' '
 
-            self.vocab[maxpair] += 1
             success = True
 
             words = list(self.corpus.keys())
@@ -85,6 +84,7 @@ class BytePairTokenizer:
                         replacement = re.sub(search, replace, word).strip()
                         self.corpus[replacement] = self.corpus[word]
                         del(self.corpus[word])
+                        self.vocab[maxpair] += 1
 
                     except:
                         del(self.corpus[word])
