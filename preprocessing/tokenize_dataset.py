@@ -60,36 +60,28 @@ def tokenize_file_lines(tokenizer: 'Tokenizer', inpath: str,
     return ids
 
 
-def write_tokenized(tokenizer, inpath, outpath, window_size, splitter) -> None:
-    """ Tokenize file and write tokenized ids to new location with "window_size"
-        padding before each line
+def write_tokenized(tokenizer, inpath, outpath, splitter) -> None:
+    """ Tokenize file and write tokenized ids to new location 
 
     Args:
         tokenizer: tokenizer for file segmentation
         inpath: path to file to segment
         outpath: path to place new file of ids
-        window_size: length of each line in tokens
         splitter: string to split lines on
     """
 
     line_ids = tokenize_file_lines(tokenizer, inpath, splitter)
-    pad = tokenizer.get_pad_token()
-    pad_idx = str(tokenizer.get_token_id(pad))
-    padding = [pad_idx for i in range(window_size)]
+    eol = tokenizer.get_end_of_line_token()
+    eol_idx = str(tokenizer.get_token_id(eol))
 
     window = []
     with open(outpath, 'w') as outfile:
 
         for ids in line_ids:
             ids = [str(x) for x in ids]
-            padded_ids = padding + ids
-
-            start, end = 0, window_size + 1
-            while end < len(padded_ids):
-                line_out = ' '.join(padded_ids[start:end])
-                outfile.write(f'{line_out}\n')
-                start += 1
-                end += 1
+            line_ids = [eol_idx] + ids + [eol_idx]
+            line_out = ' '.join(line_ids)
+            outfile.write(f'{line_out}\n')
 
 
 def main():
@@ -98,14 +90,12 @@ def main():
     parser.add_argument('-c', '--checkpoint', required=True)
     parser.add_argument('-i', '--infile', required=True)
     parser.add_argument('-o', '--outdir', required=True)
-    parser.add_argument('-w', '--window_size', type=int, required=True)
     parser.add_argument('-j', '--jobs', type=int, required=True)
     parser.add_argument('-s', '--splitter', type=str, default='\n')
     args = parser.parse_args()
     checkpoint = args.checkpoint
     infile = args.infile
     outdir = args.outdir
-    window_size = args.window_size
     jobs = args.jobs
     splitter = args.splitter
 
@@ -132,7 +122,6 @@ def main():
                 zip(repeat(tokenizer), 
                 ingroup, 
                 outgroup, 
-                repeat(window_size), 
                 repeat(splitter))
             )
             current_index += jobs

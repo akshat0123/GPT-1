@@ -5,9 +5,9 @@ from torch.utils.data import DataLoader, random_split
 from torch.optim import Adam
 from torch.nn import CrossEntropyLoss
 
-from model.dataset import BytePairDataset, BytePairCollator
 from model.tokenizer import BytePairTokenizer
 from model.model import TransformerDecoder
+from model.dataset import TokenIDDataset
 from model.trainer import Trainer
 
 
@@ -26,17 +26,12 @@ def main():
     # Load tokenizer and dataset
     tokenizer = BytePairTokenizer()
     tokenizer.load(**confs['tokenizer'])
-    dataset = BytePairDataset(**confs['dataset'])
-
-    # Split into train and dev datasets
-    train_size = int(0.9 * len(dataset))
-    dev_size = len(dataset) - train_size
-    train, dev = random_split(dataset, [train_size, dev_size])
+    train = TokenIDDataset(**confs['train_data'])
+    dev = TokenIDDataset(**confs['val_data'])
 
     # Initialize train and dev data loaders
-    collator = BytePairCollator(**confs['collator'])
-    tloader = DataLoader(dataset=train, collate_fn=collator, **confs['loader'])
-    dloader = DataLoader(dataset=dev, collate_fn=collator, **confs['loader'])
+    tloader = DataLoader(dataset=train, collate_fn=TokenIDDataset.collate, **confs['loader'])
+    dloader = DataLoader(dataset=dev, collate_fn=TokenIDDataset.collate, **confs['loader'])
 
     # Initialize model
     model = TransformerDecoder(**confs['model'])

@@ -49,7 +49,8 @@ class Trainer:
         progress = tqdm(total=len(loader), desc='Train Loss: | Err: | LR: ')
         self.reset_metrics()
 
-        for batch in loader:
+        for batch, line_idx in loader:
+            batch = batch.to(self.model.device)
             self.optimizer.zero_grad()
             loss = self.step(batch)
             loss.backward()
@@ -60,7 +61,7 @@ class Trainer:
                     f'| Err: {self.batch_err:.10f}'
                     f'| LR: {self.scheduler.get_last_lr()[0]:.10f}')
             progress.set_description(desc)
-            progress.update(1)
+            progress.update(line_idx - progress.n)
 
         return self.batch_loss, self.batch_err
 
@@ -78,13 +79,14 @@ class Trainer:
         self.reset_metrics()
 
         with torch.no_grad():
-            for batch in loader:
+            for batch, line_idx in loader:
+                batch = batch.to(self.model.device)
                 loss = self.step(batch)
 
                 desc = (f'Val Loss: {self.batch_loss:.10f}'
                         f'| Err: {self.batch_err:.10f}')
                 progress.set_description(desc)
-                progress.update(1)
+                progress.update(line_idx - progress.n)
 
         return self.batch_loss, self.batch_err
 
