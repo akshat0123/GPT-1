@@ -27,7 +27,7 @@ def main():
     tokenizer = BytePairTokenizer()
     tokenizer.load(**confs['tokenizer'])
     train = TokenIDDataset(**confs['train_data'])
-    dev = TokenIDDataset(**confs['val_data'])
+    dev = TokenIDDataset(**confs['dev_data'])
 
     # Initialize train and dev data loaders
     tloader = DataLoader(dataset=train, collate_fn=TokenIDDataset.collate, **confs['loader'])
