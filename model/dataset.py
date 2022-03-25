@@ -1,4 +1,6 @@
-from torch import FloatTensor, LongTensor, cat
+from random import sample
+
+from torch import FloatTensor, LongTensor, Tensor, cat
 from torch.utils.data import IterableDataset
 from torch.nn.functional import one_hot
 
@@ -45,12 +47,33 @@ class TokenIDDataset(IterableDataset):
 
 
     @staticmethod
-    def collate(batch):
+    def collate(batch: ):
         ids = [batch[i][0][None, :] for i in range(len(batch))]
         line_idx = batch[-1][1]
         ids = cat(ids, dim=0)
         ids = ids.type(FloatTensor)
-
         return ids, line_idx
 
 
+class TokenIDSubset(TokenIDDataset):
+
+
+    def __init__(self, dataset: TokenIDDataset, size: int):
+        """ Dataset class for subset of byte pair token id dataset 
+
+        Args:
+            dataset: token id dataset to subset
+            size: number of lines to sample from token id dataset
+        """
+        self.data = sample(dataset.data, size)
+        self.window_size = dataset.window_size
+        self.vocab_size = dataset.vocab_size
+        self.pad = dataset.pad
+
+
+    def __iter__(self):
+        yield from super().__iter__()
+
+
+    def __len__(self):
+        return super().__len__()

@@ -17,6 +17,12 @@ dev_data:
     vocab_size: *vocab_size
     pad: 56728
 
+train_subset:
+    size: 20000
+
+dev_subset:
+    size: 3000
+
 loader:
     drop_last: True
     batch_size: 64
@@ -40,6 +46,6 @@ optimizer:
 scheduler:
     T_max: 1000
 
-epochs: 1
+epochs: 2
 
-checkpoint: "/home/apgpu/Programs/Decoders/checkpoints"
+checkpoint: "/home/apgpu/Programs/Decoders/checkpoints/model"

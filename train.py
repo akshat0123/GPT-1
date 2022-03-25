@@ -5,9 +5,8 @@ from torch.utils.data import DataLoader, random_split
 from torch.optim import Adam
 from torch.nn import CrossEntropyLoss
 
-from model.tokenizer import BytePairTokenizer
+from model.dataset import TokenIDDataset, TokenIDSubset
 from model.model import TransformerDecoder
-from model.dataset import TokenIDDataset
 from model.trainer import Trainer
 
 
@@ -23,15 +22,9 @@ def main():
 
     confs = yaml.safe_load(open(config_path, 'r'))
 
-    # Load tokenizer and dataset
-    tokenizer = BytePairTokenizer()
-    tokenizer.load(**confs['tokenizer'])
+    # Load dataset
     train = TokenIDDataset(**confs['train_data'])
     dev = TokenIDDataset(**confs['dev_data'])
-
-    # Initialize train and dev data loaders
-    tloader = DataLoader(dataset=train, collate_fn=TokenIDDataset.collate, **confs['loader'])
-    dloader = DataLoader(dataset=dev, collate_fn=TokenIDDataset.collate, **confs['loader'])
 
     # Initialize model
     model = TransformerDecoder(**confs['model'])
@@ -47,21 +40,31 @@ def main():
         optimizer.load_state_dict(checkpoint['optimizer'])
         scheduler.load_state_dict(checkpoint['scheduler'])
         model.load_state_dict(checkpoint['model'])
-        tokenizer = checkpoint['tokenizer']
         current_epoch = checkpoint['epoch']
 
-    model.train()
-    trainer = Trainer(model, tokenizer, optimizer, loss_fn, scheduler)
+    trainer = Trainer(model, optimizer, loss_fn, scheduler)
+    collate = TokenIDDataset.collate
     for epoch in range(current_epoch+1, confs['epochs']+1):
+
+        # Create data subsets
+        train_sub = TokenIDSubset(train, **confs['train_subset']) 
+        dev_sub = TokenIDSubset(dev, **confs['dev_subset']) 
+
+        # Initialize train and dev data loaders
+        tloader = DataLoader(train_sub, collate_fn=collate, **confs['loader'])
+        dloader = DataLoader(dev_sub, collate_fn=collate, **confs['loader'])
 
         print(f'\nEpoch: {epoch}')
         train_loss, train_err = trainer.train(tloader)
-        val_loss, val_err = trainer.validate(dloader)
+        dev_loss, dev_err = trainer.validate(dloader)
 
         checkpoint = trainer.get_checkpoint()
         checkpoint.update({
-            'train_loss': train_loss, 'train_err': train_err,
-            'val_loss': val_loss, 'val_err': val_err, 'epoch': epoch,
+            'train_loss': train_loss, 
+            'train_err': train_err,
+            'dev_loss': val_loss, 
+            'dev_err': val_err, 
+            'epoch': epoch,
         })
 
         checkpoint_path = f"{confs['checkpoint']}/{epoch}.pickle"

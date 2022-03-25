@@ -7,18 +7,17 @@ import torch
 class Trainer:
 
 
-    def __init__(self, model: torch.nn.Module, tokenizer: 'Tokenizer',
-                 optimizer: torch.optim, loss_fn: torch.nn,
-                 scheduler: torch.optim.lr_scheduler) -> None:
+    def __init__(self, model: torch.nn.Module, optimizer: torch.optim, 
+                 loss_fn: torch.nn, scheduler: torch.optim.lr_scheduler) \
+                 -> None:
         """ Initialize trainer module
+
         Args:
             model: model to be trained
-            tokenizer: tokenizer for tokenizing list of strings
             optimizer: optimizer for learning
             loss_fn: loss function to optimize
             scheduler: learning rate scheduler
         """
-        self.tokenizer = tokenizer
         self.optimizer = optimizer
         self.scheduler = scheduler
         self.loss_fn = loss_fn
@@ -39,15 +38,19 @@ class Trainer:
 
     def train(self, loader: torch.utils.data.DataLoader) -> (float, float):
         """ Train on batches in loader
+
         Args:
             loader: data loader containing training data in batches
+
         Returns:
             (float): average loss
             (float): average error
         """
 
-        progress = tqdm(total=len(loader), desc='Train Loss: | Err: | LR: ')
+        barsize = len(loader.dataset)
+        progress = tqdm(total=barsize, desc='Train Loss: | Err: | LR: ')
         self.reset_metrics()
+        self.model.train()
 
         for batch, line_idx in loader:
             batch = batch.to(self.model.device)
@@ -61,22 +64,28 @@ class Trainer:
                     f'| Err: {self.batch_err:.10f}'
                     f'| LR: {self.scheduler.get_last_lr()[0]:.10f}')
             progress.set_description(desc)
-            progress.update(line_idx - progress.n)
+
+            if line_idx > progress.n:
+                progress.update(line_idx - progress.n)
 
         return self.batch_loss, self.batch_err
 
 
     def validate(self, loader: torch.utils.data.DataLoader) -> (float, float):
         """ Validate using batches in loader
+
         Args:
             loader: data loader containing validation data in batches
+
         Returns:
             (float): average loss
             (float): average error
         """
 
-        progress = tqdm(total=len(loader), desc='Val Loss: | Err: ')
+        barsize = len(loader.dataset)
+        progress = tqdm(total=barsize, desc='Val Loss: | Err: ')
         self.reset_metrics()
+        self.model.eval()
 
         with torch.no_grad():
             for batch, line_idx in loader:
@@ -86,13 +95,16 @@ class Trainer:
                 desc = (f'Val Loss: {self.batch_loss:.10f}'
                         f'| Err: {self.batch_err:.10f}')
                 progress.set_description(desc)
-                progress.update(line_idx - progress.n)
+
+                if line_idx > progress.n:
+                    progress.update(line_idx - progress.n)
 
         return self.batch_loss, self.batch_err
 
 
     def step(self, batch: torch.Tensor):
         """ Run training / validation step on provided batch
+
         Args:
             batch: tensor of byte pair ids to train model on 
         """
@@ -114,6 +126,7 @@ class Trainer:
 
     def get_checkpoint(self) -> Dict[str, str]:
         """  Get dictionary of state dictionaries for checkpointing
+
         Returns:
             (Dict[str, str]): dictionary mapping trainer components to their
                               state dictionaries for checkpointing
@@ -122,6 +135,5 @@ class Trainer:
         return {
             'optimizer': self.optimizer.state_dict(),
             'scheduler': self.scheduler.state_dict(),
-            'model': self.model.state_dict(),
-            'tokenizer': self.tokenizer
+            'model': self.model.state_dict()
         }

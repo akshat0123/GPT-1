@@ -31,9 +31,9 @@ def main():
 
     model.eval()
 
-    vocab_size = 16082
-    window_size = 16
-    k = 3
+    vocab_size = 56734
+    window_size = 64
+    k = 300
 
     sequence = [tokenizer.get_pad_token() for i in range(window_size-1)]
     sequence += [tokenizer.get_end_of_line_token()]
