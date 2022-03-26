@@ -3,6 +3,11 @@ class RollingCounter:
 
 
     def __init__(self, limit: int):
+        """ Counter keeping track of total and rolling average
+
+        Args:
+            limit: total size of "rolling" count
+        """
         self.non_latest_total = 0
         self.non_latest_count = 0
         self.latest_values = []
@@ -10,7 +15,12 @@ class RollingCounter:
         self.limit = limit
 
 
-    def add(self, x: int):
+    def add(self, x: int) -> None:
+        """ Add number to rolling counts
+
+        Args:
+           x: number to add 
+        """
         self.latest_values.append(x)
         self.latest_total += x
 
@@ -21,7 +31,7 @@ class RollingCounter:
             self.non_latest_count += 1
 
 
-    def total_average(self):
+    def total_average(self) -> float:
         count = self.non_latest_count + len(self.latest_values)
         total = self.non_latest_total + self.latest_total
         return total / count
