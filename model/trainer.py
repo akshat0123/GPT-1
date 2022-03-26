@@ -3,13 +3,14 @@ from typing import Dict, List
 from tqdm import tqdm
 import torch
 
+from model.utils import RollingCounter
+
 
 class Trainer:
 
 
     def __init__(self, model: torch.nn.Module, optimizer: torch.optim, 
-                 loss_fn: torch.nn, scheduler: torch.optim.lr_scheduler) \
-                 -> None:
+                 loss_fn: torch.nn, scheduler: torch.optim.lr_scheduler):
         """ Initialize trainer module
 
         Args:
@@ -22,18 +23,15 @@ class Trainer:
         self.scheduler = scheduler
         self.loss_fn = loss_fn
         self.model = model
+        self.metrics = {}
 
 
     def reset_metrics(self) -> None:
         """ Zero out internal metrics
         """
 
-        self.total_loss = 0
-        self.batch_loss = 0
-        self.total_err = 0
-        self.batch_err = 0
-        self.count = 0
-        self.steps = 0
+        self.error = RollingCounter(1000)
+        self.loss = RollingCounter(1000)
 
 
     def train(self, loader: torch.utils.data.DataLoader) -> (float, float):
@@ -48,27 +46,36 @@ class Trainer:
         """
 
         barsize = len(loader.dataset)
-        progress = tqdm(total=barsize, desc='Train Loss: | Err: | LR: ')
+        progress = tqdm(total=barsize, desc='Train Loss: | Error: | LR: ')
         self.reset_metrics()
         self.model.train()
 
         for batch, line_idx in loader:
             batch = batch.to(self.model.device)
             self.optimizer.zero_grad()
+
             loss = self.step(batch)
             loss.backward()
+
             self.optimizer.step()
             self.scheduler.step()
 
-            desc = (f'Train Loss: {self.batch_loss:.10f}'
-                    f'| Err: {self.batch_err:.10f}'
+            desc = (f'Train | Rolling Loss: {self.loss.rolling_average():.10f} '
+                    f'| Rolling Error: {self.error.rolling_average():.10f} '
                     f'| LR: {self.scheduler.get_last_lr()[0]:.10f}')
             progress.set_description(desc)
 
             if line_idx > progress.n:
                 progress.update(line_idx - progress.n)
 
-        return self.batch_loss, self.batch_err
+        progress.update(progress.total - progress.n)
+        
+        self.metrics.update({
+            'train_rolling_error': self.error.rolling_average(),
+            'train_rolling_loss': self.loss.rolling_average(),
+            'train_total_error': self.error.total_average(),
+            'train_total_loss': self.loss.total_average()
+        })
 
 
     def validate(self, loader: torch.utils.data.DataLoader) -> (float, float):
@@ -83,7 +90,7 @@ class Trainer:
         """
 
         barsize = len(loader.dataset)
-        progress = tqdm(total=barsize, desc='Val Loss: | Err: ')
+        progress = tqdm(total=barsize, desc='Val Loss: | Error: ')
         self.reset_metrics()
         self.model.eval()
 
@@ -92,14 +99,19 @@ class Trainer:
                 batch = batch.to(self.model.device)
                 loss = self.step(batch)
 
-                desc = (f'Val Loss: {self.batch_loss:.10f}'
-                        f'| Err: {self.batch_err:.10f}')
+                desc = (f'Train | Total Loss: {self.loss.total_average():.10f} '
+                        f'| Total Error: {self.error.total_average():.10f}')
                 progress.set_description(desc)
 
                 if line_idx > progress.n:
                     progress.update(line_idx - progress.n)
 
-        return self.batch_loss, self.batch_err
+        progress.update(progress.total - progress.n)
+
+        self.metrics.update({
+            'dev_total_error': self.error.total_average(),
+            'dev_total_loss': self.loss.total_average()
+        })
 
 
     def step(self, batch: torch.Tensor):
@@ -113,13 +125,11 @@ class Trainer:
         loss = self.loss_fn(yhat, y)
 
         y, yhat = torch.argmax(y, dim=1), torch.argmax(yhat, dim=1)
-        self.total_err += torch.sum((yhat != y).float()).item()
-        self.total_loss += loss.item()
-        self.count += len(batch)
-        self.steps += 1
+        avg_batch_err = torch.mean((yhat != y).float()).item()
+        avg_batch_loss = loss.item()
 
-        self.batch_err = self.total_err / self.count
-        self.batch_loss = self.total_loss / self.steps
+        self.error.add(avg_batch_err)
+        self.loss.add(avg_batch_loss)
 
         return loss
 
@@ -133,6 +143,12 @@ class Trainer:
         """
 
         return {
+            'train_rolling_error': self.metrics['train_rolling_error'],
+            'train_rolling_loss': self.metrics['train_rolling_loss'],
+            'train_total_error': self.metrics['train_total_error'],
+            'train_total_loss': self.metrics['train_total_loss'],
+            'dev_total_error': self.metrics['dev_total_error'],
+            'dev_total_loss': self.metrics['dev_total_loss'],
             'optimizer': self.optimizer.state_dict(),
             'scheduler': self.scheduler.state_dict(),
             'model': self.model.state_dict()

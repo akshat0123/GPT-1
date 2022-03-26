@@ -2,8 +2,8 @@ import argparse, pickle, yaml
 
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import DataLoader, random_split
-from torch.optim import Adam
 from torch.nn import CrossEntropyLoss
+from torch.optim import Adam
 
 from model.dataset import TokenIDDataset, TokenIDSubset
 from model.model import TransformerDecoder
@@ -55,18 +55,11 @@ def main():
         dloader = DataLoader(dev_sub, collate_fn=collate, **confs['loader'])
 
         print(f'\nEpoch: {epoch}')
-        train_loss, train_err = trainer.train(tloader)
-        dev_loss, dev_err = trainer.validate(dloader)
+        trainer.train(tloader)
+        trainer.validate(dloader)
 
         checkpoint = trainer.get_checkpoint()
-        checkpoint.update({
-            'train_loss': train_loss, 
-            'train_err': train_err,
-            'dev_loss': val_loss, 
-            'dev_err': val_err, 
-            'epoch': epoch,
-        })
-
+        checkpoint.update({ 'epoch': epoch })
         checkpoint_path = f"{confs['checkpoint']}/{epoch}.pickle"
         pickle.dump(checkpoint, open(checkpoint_path, 'wb'))
 

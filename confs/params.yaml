@@ -46,6 +46,6 @@ optimizer:
 scheduler:
     T_max: 1000
 
-epochs: 2
+epochs: 1
 
 checkpoint: "/home/apgpu/Programs/Decoders/checkpoints/model"

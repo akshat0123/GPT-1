@@ -47,7 +47,17 @@ class TokenIDDataset(IterableDataset):
 
 
     @staticmethod
-    def collate(batch: ):
+    def collate(batch: Tensor) -> (Tensor, Tensor):
+        """ Join batch of TokenIDDataset members
+
+        Args:
+            batch: batch of ids 
+
+        Returns:
+            (Tensor): Tensor of joined batch ids 
+            (Tensor): Tensor of line numbers
+        """
+
         ids = [batch[i][0][None, :] for i in range(len(batch))]
         line_idx = batch[-1][1]
         ids = cat(ids, dim=0)
