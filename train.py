@@ -1,7 +1,9 @@
 import argparse, pickle, yaml
 
+
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import DataLoader, random_split
+from tensorboardX import SummaryWriter
 from torch.nn import CrossEntropyLoss
 from torch.optim import Adam
 
@@ -11,6 +13,16 @@ from model.trainer import Trainer
 
 
 config_path = 'confs/params.yaml'
+
+
+def update_logs(logger, checkpoint):
+    c, e = checkpoint, checkpoint['epoch']
+    logger.add_scalar('train_rolling_error', c['train_rolling_error'], e)
+    logger.add_scalar('train_rolling_loss', c['train_rolling_loss'], e)
+    logger.add_scalar('train_total_error', c['train_total_error'], e)
+    logger.add_scalar('train_total_loss', c['train_total_loss'], e)
+    logger.add_scalar('dev_total_error', c['dev_total_error'], e)
+    logger.add_scalar('dev_total_loss', c['dev_total_loss'], e)
 
 
 def main():
@@ -33,6 +45,9 @@ def main():
     optimizer = Adam(model.parameters(), **confs['optimizer'])
     scheduler = CosineAnnealingLR(optimizer=optimizer, **confs['scheduler'])
     loss_fn = CrossEntropyLoss()
+
+    # Initialize logs
+    logger = SummaryWriter(confs['logdir'])
 
     current_epoch = 0
     if checkpoint_path is not None:
@@ -58,10 +73,14 @@ def main():
         trainer.train(tloader)
         trainer.validate(dloader)
 
+        # Save checkpoint
         checkpoint = trainer.get_checkpoint()
         checkpoint.update({ 'epoch': epoch })
         checkpoint_path = f"{confs['checkpoint']}/{epoch}.pickle"
         pickle.dump(checkpoint, open(checkpoint_path, 'wb'))
+
+        # Update logs
+        update_logs(logger, checkpoint)
 
 
 if __name__ == '__main__':
