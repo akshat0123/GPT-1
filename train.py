@@ -12,7 +12,7 @@ from model.model import TransformerDecoder
 from model.trainer import Trainer
 
 
-config_path = 'confs/params.yaml'
+config_path = 'params.yml'
 
 
 def update_logs(logger, checkpoint):

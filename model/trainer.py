@@ -62,7 +62,7 @@ class Trainer:
 
             desc = (f'Train | Rolling Loss: {self.loss.rolling_average():.10f} '
                     f'| Rolling Error: {self.error.rolling_average():.10f} '
-                    f'| LR: {self.scheduler.get_last_lr()[0]:.10f}')
+                    f'| LR: {self.scheduler.get_last_lr()[0]:.15f}')
             progress.set_description(desc)
 
             if line_idx > progress.n:

@@ -1,0 +1,11 @@
+train:
+    description: Train a decoder
+    main: train
+    sourcecode:
+        root: ../
+        dest: .
+        select: 
+            - "*.py"
+    flags-dest: config:params.yml
+    flags-import: all
+    output-scalars: off
