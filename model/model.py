@@ -9,7 +9,7 @@ class TransformerDecoder(Module):
     def __init__(self, vocab_size: int, embedding_size: int, window_size: int,
                  d_k: int, d_v: int, n_heads: int, hidden: int, n_blocks: int,
                  dropout: float, device: str):
-        """ Initialized tranformer-based decoder
+        """ Initialize tranformer-based decoder
 
         Args:
             vocab_size: input vocabulary size
@@ -51,7 +51,7 @@ class TransformerBlock(Module):
 
 
     def __init__(self, d_in, d_k, d_v, n_heads, hidden, dropout, device):
-        """ Initialized tranformer block
+        """ Initialize tranformer block
 
         Args:
             d_in: input size
@@ -100,7 +100,7 @@ class MultiHeadAttentionLayer(Module):
 
 
     def __init__(self, d_in, d_k, d_v, n_heads, device):
-        """ Initialized multi-headed attention layer
+        """ Initialize multi-headed attention layer
 
         Args:
             d_in: input size
@@ -173,7 +173,7 @@ class PositionWiseFFL(Module):
 
 
     def __init__(self, d_in, d_out, activation, device):
-        """ Initialized position-wise feed forward neural network layer 
+        """ Initialize position-wise feed forward neural network layer 
 
         Args:
             d_in: input size

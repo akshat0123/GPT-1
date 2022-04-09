@@ -30,7 +30,8 @@ class TokenIDDataset(IterableDataset):
         for line_idx in range(len(self.data)):
 
             # Add padding to line to make it window length
-            line = self.pad + [int(x) for x in self.data[line_idx].split(' ')]
+            line = self.data[line_idx].strip().split(' ')
+            line = self.pad + [int(x) for x in line]
 
             # Return each window length sequence of the line
             start, end = 0, self.window_size + 1

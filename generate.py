@@ -21,8 +21,7 @@ def main():
     confs = yaml.load(open(configpath, 'r'), Loader=yaml.SafeLoader)
 
     # Load tokenizer and model
-    tokenizer = BytePairTokenizer()
-    tokenizer.load(**confs['tokenizer'])
+    tokenizer = BytePairTokenizer.load(**confs['tokenizer'])
 
     # Initialize model
     checkpoint = pickle.load(open(checkpoint_path, 'rb'))

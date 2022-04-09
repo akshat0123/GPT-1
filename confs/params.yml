@@ -3,23 +3,24 @@ logdir: "checkpoints/logs"
 epochs: 10
 
 window_size: &window_size 64
-vocab_size: &vocab_size 56734
-device: &device 'cuda:0'
+vocab_size: &vocab_size 1143
+device: &device 'cpu'
+pad: &pad 1141
 
 tokenizer: 
-    path: "/home/apgpu/Programs/Decoders/checkpoints/tokenizer.pickle"
+    path: "/home/akshat/Programs/Decoders/checkpoints/tokenizer"
 
 train_data:
-    datapath: '/home/apgpu/Programs/Decoders/data/train.txt'
+    datapath: '/home/akshat/Programs/Decoders/data/train.txt'
     window_size: *window_size
     vocab_size: *vocab_size
-    pad: 56728
+    pad: *pad
 
 dev_data:
-    datapath: '/home/apgpu/Programs/Decoders/data/dev.txt'
+    datapath: '/home/akshat/Programs/Decoders/data/dev.txt'
     window_size: *window_size
     vocab_size: *vocab_size
-    pad: 56728
+    pad: *pad
 
 train_subset:
     size: 1000
@@ -33,18 +34,18 @@ loader:
 
 model:
     vocab_size: *vocab_size
-    embedding_size: 768
+    embedding_size: 128
     window_size: *window_size
     d_k: 64
     d_v: 64
-    n_heads: 6
-    hidden: 3072
-    n_blocks: 6
+    n_heads: 2
+    hidden: 256
+    n_blocks: 2
     dropout: 0.1
     device: *device
 
 optimizer:
-    lr: 0.00000001
+    lr: 0.0001
     weight_decay: 0.01
 
 scheduler:
