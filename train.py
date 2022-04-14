@@ -1,86 +1,71 @@
-import argparse, pickle, yaml
+import yaml
 
-
-from torch.optim.lr_scheduler import CosineAnnealingLR
-from torch.utils.data import DataLoader, random_split
-from tensorboardX import SummaryWriter
-from torch.nn import CrossEntropyLoss
-from torch.optim import Adam
+from torch.utils.data import DataLoader
+from tqdm import tqdm
+import torch
 
 from model.dataset import TokenIDDataset, TokenIDSubset
 from model.model import TransformerDecoder
-from model.trainer import Trainer
+from model.utils import RollingCounter
 
 
-config_path = 'params.yml'
-
-
-def update_logs(logger, checkpoint):
-    c, e = checkpoint, checkpoint['epoch']
-    logger.add_scalar('train_rolling_error', c['train_rolling_error'], e)
-    logger.add_scalar('train_rolling_loss', c['train_rolling_loss'], e)
-    logger.add_scalar('train_total_error', c['train_total_error'], e)
-    logger.add_scalar('train_total_loss', c['train_total_loss'], e)
-    logger.add_scalar('dev_total_error', c['dev_total_error'], e)
-    logger.add_scalar('dev_total_loss', c['dev_total_loss'], e)
+confpath = './confs/params.yml'
 
 
 def main():
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-c', '--checkpoint_path', default=None)
-    args = parser.parse_args()
-    checkpoint_path = args.checkpoint_path
+    confs = yaml.safe_load(open(confpath))
 
-    confs = yaml.safe_load(open(config_path, 'r'))
-
-    # Load dataset
-    train = TokenIDDataset(**confs['train_data'])
-    dev = TokenIDDataset(**confs['dev_data'])
-
-    # Initialize model
+    train_data = TokenIDDataset(**confs['train_data'])
+    dev_data = TokenIDDataset(**confs['dev_data'])
     model = TransformerDecoder(**confs['model'])
 
-    # Initialize optimizer, scheduler, and loss
-    optimizer = Adam(model.parameters(), **confs['optimizer'])
-    scheduler = CosineAnnealingLR(optimizer=optimizer, **confs['scheduler'])
-    loss_fn = CrossEntropyLoss()
+    opt = torch.optim.SGD(model.parameters(), lr=1e-2)
+    sch = torch.optim.lr_scheduler.CosineAnnealingLR(opt, 100)
+    crit = torch.nn.CrossEntropyLoss()
 
-    # Initialize logs
-    logger = SummaryWriter(confs['logdir'])
+    train = TokenIDSubset(train_data, **confs['train_subset'])
+    dev = TokenIDSubset(dev_data, **confs['dev_subset'])
 
-    current_epoch = 0
-    if checkpoint_path is not None:
-        checkpoint = pickle.load(open(checkpoint_path, 'rb'))
-        optimizer.load_state_dict(checkpoint['optimizer'])
-        scheduler.load_state_dict(checkpoint['scheduler'])
-        model.load_state_dict(checkpoint['model'])
-        current_epoch = checkpoint['epoch']
+    for epoch in range(confs['epochs']):
 
-    trainer = Trainer(model, optimizer, loss_fn, scheduler)
-    collate = TokenIDDataset.collate
-    for epoch in range(current_epoch+1, confs['epochs']+1):
+        print(f'\n\nEpoch {epoch + 1}')
 
-        # Create data subsets
-        train_sub = TokenIDSubset(train, **confs['train_subset']) 
-        dev_sub = TokenIDSubset(dev, **confs['dev_subset']) 
+        tloader = DataLoader(collate_fn=TokenIDDataset.collate, **confs['loader'], dataset=train)
+        dloader = DataLoader(collate_fn=TokenIDDataset.collate, **confs['loader'], dataset=dev)
 
-        # Initialize train and dev data loaders
-        tloader = DataLoader(train_sub, collate_fn=collate, **confs['loader'])
-        dloader = DataLoader(dev_sub, collate_fn=collate, **confs['loader'])
+        barsize = len(tloader.dataset)
+        progress = tqdm(total=barsize, desc='LR: | Loss: | Err: ')
+        model.train()
 
-        print(f'\nEpoch: {epoch}')
-        trainer.train(tloader)
-        trainer.validate(dloader)
+        loss_metric, err_metric = RollingCounter(1000), RollingCounter(1000)
+        for batch, line_idx in tloader:
+            x, y = batch[:, :-1], batch[:, -1].long()
 
-        # Save checkpoint
-        checkpoint = trainer.get_checkpoint()
-        checkpoint.update({ 'epoch': epoch })
-        checkpoint_path = f"{confs['checkpoint']}/{epoch}.pickle"
-        pickle.dump(checkpoint, open(checkpoint_path, 'wb'))
+            opt.zero_grad()
 
-        # Update logs
-        update_logs(logger, checkpoint)
+            y_pred = model(x.long())
+            loss = crit(y_pred, y)
+
+            loss.backward()
+            opt.step()
+            sch.step()
+
+            y_pred = torch.argmax(y_pred, dim=1)
+            err = (y_pred!=y).sum() / y.shape[0]
+
+            loss_metric.add(loss.item())
+            err_metric.add(err)
+
+            if line_idx > progress.n:
+                progress.set_description(
+                    f'LR: {sch.get_last_lr()[-1]:.8f} | '
+                    f'Loss: {loss_metric.rolling_average():.8f} | '
+                    f'Err: {err_metric.rolling_average():.8f}'
+                )
+                progress.update(line_idx - progress.n)
+
+        progress.update(barsize - progress.n)
 
 
 if __name__ == '__main__':

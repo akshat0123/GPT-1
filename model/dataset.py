@@ -37,7 +37,6 @@ class TokenIDDataset(IterableDataset):
             start, end = 0, self.window_size + 1
             while end < len(line):
                 ids = LongTensor(line[start:end])
-                ids = one_hot(ids, num_classes=self.vocab_size)
                 yield ids, line_idx
                 start += 1
                 end += 1
