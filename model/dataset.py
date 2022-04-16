@@ -1,6 +1,6 @@
 from random import sample
 
-from torch import FloatTensor, LongTensor, Tensor, cat
+from torch import FloatTensor, LongTensor, Tensor, stack, cat
 from torch.utils.data import IterableDataset
 from torch.nn.functional import one_hot
 
@@ -37,7 +37,7 @@ class TokenIDDataset(IterableDataset):
             start, end = 0, self.window_size + 1
             while end < len(line):
                 ids = LongTensor(line[start:end])
-                yield ids, line_idx
+                yield ids[:-1], ids[-1], line_idx
                 start += 1
                 end += 1
 
@@ -58,11 +58,12 @@ class TokenIDDataset(IterableDataset):
             (Tensor): Tensor of line numbers
         """
 
-        ids = [batch[i][0][None, :] for i in range(len(batch))]
-        line_idx = batch[-1][1]
-        ids = cat(ids, dim=0)
-        ids = ids.type(FloatTensor)
-        return ids, line_idx
+        xids = [batch[i][0][None, :] for i in range(len(batch))]
+        yids = [batch[i][1] for i in range(len(batch))]
+        line_idx = batch[-1][2]
+        xids = cat(xids, dim=0)
+        yids = stack(yids, dim=0)
+        return xids, yids, line_idx
 
 
 class TokenIDSubset(TokenIDDataset):

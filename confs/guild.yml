@@ -4,8 +4,11 @@ train:
     sourcecode:
         root: ../
         dest: .
-        select: 
-            - "*.py"
+        select: "*.py"
     flags-dest: config:params.yml
     flags-import: all
-    output-scalars: off
+    requires:
+        - file: ../data/model/train.txt
+          target-path: data/model
+        - file: ../data/model/dev.txt
+          target-path: data/model

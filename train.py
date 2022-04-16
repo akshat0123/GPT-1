@@ -1,15 +1,39 @@
-import yaml
+import shutil, yaml, os
 
+from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import DataLoader
-from tqdm import tqdm
-import torch
+from tensorboardX import SummaryWriter
+from torch.nn import CrossEntropyLoss
+from torch.optim import SGD
+from torch import save
 
 from model.dataset import TokenIDDataset, TokenIDSubset
 from model.model import TransformerDecoder
-from model.utils import RollingCounter
+from model.trainer import Trainer
 
 
-confpath = './confs/params.yml'
+confpath = 'params.yml'
+
+
+def save_checkpoint(path, model, opt, sch, epoch):
+
+    filepath = f'{path}/epoch_{epoch}'
+    if os.path.exists(filepath):
+        shutil.rmtree(filepath)
+
+    os.makedirs(filepath)
+    save(model.state_dict(), f'{filepath}/model.pth')
+    save(opt.state_dict(), f'{filepath}/opt.pth')
+    save(sch.state_dict(), f'{filepath}/sch.pth')
+
+
+def publish_metrics(logger, train_metrics, dev_metrics, epoch):
+
+    for key in train_metrics:
+        logger.add_scalar(f'train_{key}', train_metrics[key], epoch)
+
+    for key in dev_metrics:
+        logger.add_scalar(f'dev_{key}', train_metrics[key], epoch)
 
 
 def main():
@@ -18,54 +42,28 @@ def main():
 
     train_data = TokenIDDataset(**confs['train_data'])
     dev_data = TokenIDDataset(**confs['dev_data'])
-    model = TransformerDecoder(**confs['model'])
 
-    opt = torch.optim.SGD(model.parameters(), lr=1e-2)
-    sch = torch.optim.lr_scheduler.CosineAnnealingLR(opt, 100)
-    crit = torch.nn.CrossEntropyLoss()
+    model = TransformerDecoder(**confs['model'])
+    opt = SGD(model.parameters(), **confs['opt'])
+    sch = CosineAnnealingLR(opt, **confs['sch'])
+    crit = CrossEntropyLoss()
+
+    trainer = Trainer(model, crit, opt, sch, **confs['trainer'])
+    logger = SummaryWriter()
 
     train = TokenIDSubset(train_data, **confs['train_subset'])
     dev = TokenIDSubset(dev_data, **confs['dev_subset'])
 
+    collate = TokenIDDataset.collate
+    tloader = DataLoader(collate_fn=collate, **confs['loader'], dataset=train)
+    dloader = DataLoader(collate_fn=collate, **confs['loader'], dataset=dev)
+
     for epoch in range(confs['epochs']):
-
-        print(f'\n\nEpoch {epoch + 1}')
-
-        tloader = DataLoader(collate_fn=TokenIDDataset.collate, **confs['loader'], dataset=train)
-        dloader = DataLoader(collate_fn=TokenIDDataset.collate, **confs['loader'], dataset=dev)
-
-        barsize = len(tloader.dataset)
-        progress = tqdm(total=barsize, desc='LR: | Loss: | Err: ')
-        model.train()
-
-        loss_metric, err_metric = RollingCounter(1000), RollingCounter(1000)
-        for batch, line_idx in tloader:
-            x, y = batch[:, :-1], batch[:, -1].long()
-
-            opt.zero_grad()
-
-            y_pred = model(x.long())
-            loss = crit(y_pred, y)
-
-            loss.backward()
-            opt.step()
-            sch.step()
-
-            y_pred = torch.argmax(y_pred, dim=1)
-            err = (y_pred!=y).sum() / y.shape[0]
-
-            loss_metric.add(loss.item())
-            err_metric.add(err)
-
-            if line_idx > progress.n:
-                progress.set_description(
-                    f'LR: {sch.get_last_lr()[-1]:.8f} | '
-                    f'Loss: {loss_metric.rolling_average():.8f} | '
-                    f'Err: {err_metric.rolling_average():.8f}'
-                )
-                progress.update(line_idx - progress.n)
-
-        progress.update(barsize - progress.n)
+        print(f'\n\nEpoch {epoch+1}')
+        train_metrics = trainer.run_epoch(tloader)
+        dev_metrics = trainer.run_epoch(dloader, train=False)
+        publish_metrics(logger, train_metrics, dev_metrics, epoch+1)
+        save_checkpoint(confs['checkpoint'], model, opt, sch, epoch+1)
 
 
 if __name__ == '__main__':
