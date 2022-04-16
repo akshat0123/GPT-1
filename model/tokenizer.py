@@ -20,10 +20,15 @@ class BytePairTokenizer:
         self.vocab_to_idx = vocab_to_idx
         self.idx_to_vocab = idx_to_vocab
         self.freqs = freqs
-        self.eol = '</eol>'
+        self.sol = '<line/>'
+        self.eol = '</line>'
         self.pad = '<pad>'
         self.unk = '<unk>'
         self.eow = '</w>'
+
+
+    def get_sol(self) -> str:
+        return self.sol
 
 
     def get_eol(self) -> str:
@@ -40,6 +45,25 @@ class BytePairTokenizer:
 
     def get_eow(self) -> str:
         return self.eow
+
+
+    def get_byte_id(self, byte: str) -> int:
+        """ Get byte id for byte
+
+        Args:
+            byte: byte string
+
+        Returns:
+            (int): byte id
+        """
+
+        if byte in self.vocab_to_idx:
+            bid = self.vocab_to_idx[byte]
+
+        else:
+            bid = self.vocab_to_idx[self.unk]
+
+        return bid
 
 
     def get_byte_ids(self, bytes_: List[str]) -> List[int]:
@@ -277,7 +301,7 @@ def count_byte_freqs(vocab: Dict[str, int]) -> Dict[str, int]:
         for byte in bytes_:
             freqs[byte] += 1
 
-    for token in ['</eol>', '<pad>', '<unk>']:
+    for token in ['<line/>', '</line>', '<pad>', '<unk>']:
         freqs[token] += 1
 
     return freqs

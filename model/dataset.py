@@ -37,7 +37,8 @@ class TokenIDDataset(IterableDataset):
             start, end = 0, self.window_size + 1
             while end < len(line):
                 ids = LongTensor(line[start:end])
-                yield ids[:-1], ids[-1], line_idx
+                pads = (ids!=self.pad[0]).float()
+                yield ids[:-1], ids[-1], pads[:-1], line_idx
                 start += 1
                 end += 1
 
@@ -47,7 +48,7 @@ class TokenIDDataset(IterableDataset):
 
 
     @staticmethod
-    def collate(batch: Tensor) -> (Tensor, Tensor):
+    def collate(batch: Tensor) -> (Tensor, Tensor, Tensor, int):
         """ Join batch of TokenIDDataset members
 
         Args:
@@ -55,15 +56,19 @@ class TokenIDDataset(IterableDataset):
 
         Returns:
             (Tensor): Tensor of joined batch ids 
-            (Tensor): Tensor of line numbers
+            (Tensor): Tensor of joined batch ids 
+            (Tensor): Tensor of joined pad indicators
+            (int): Last line number in batch
         """
 
         xids = [batch[i][0][None, :] for i in range(len(batch))]
+        pads = [batch[i][2][None, :] for i in range(len(batch))]
         yids = [batch[i][1] for i in range(len(batch))]
-        line_idx = batch[-1][2]
+        line_idx = batch[-1][3]
         xids = cat(xids, dim=0)
+        pads = cat(pads, dim=0)
         yids = stack(yids, dim=0)
-        return xids, yids, line_idx
+        return xids, yids, pads, line_idx
 
 
 class TokenIDSubset(TokenIDDataset):

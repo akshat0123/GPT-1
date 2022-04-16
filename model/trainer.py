@@ -25,9 +25,11 @@ class Trainer:
         self.model.train(mode=train)
 
         with set_grad_enabled(train):
-            for x, y, line_idx in loader:
-                x, y = x.to(device=self.device), y.to(device=self.device)
-                loss, err = self.step(x, y, train)
+            for x, y, padding, line_idx in loader:
+                padding = padding.to(device=self.device)
+                x = x.to(device=self.device)
+                y = y.to(device=self.device)
+                loss, err = self.step(x, y, padding, train)
                 loss_metric.add(loss)
                 err_metric.add(err)
 
@@ -49,13 +51,13 @@ class Trainer:
         }
 
 
-    def step(self, x, y, train=True):
+    def step(self, x, y, padding, train=True):
 
         if train:
             self.model.zero_grad()
             self.opt.zero_grad()
 
-        y_pred = self.model(x.long())
+        y_pred = self.model(x, padding)
         loss = self.crit(y_pred, y)
 
         if train:

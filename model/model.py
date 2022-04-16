@@ -1,4 +1,4 @@
-from torch import LongTensor, einsum, Tensor, square, mean, ones, rand, sqrt, tril, cat
+from torch import LongTensor, nan_to_num, einsum, Tensor, square, mean, ones, rand, sqrt, tril, cat
 from torch.nn import Parameter, ModuleList, Dropout, Softmax, Linear, Module, GELU
 from torch import sum as sum_
 
@@ -17,13 +17,13 @@ class TransformerDecoder(Module):
         self.output = Linear(d_emb, vocab_size).to(device=device)
 
 
-    def forward(self, x):
+    def forward(self, x, padding):
         emb = self.embedding(x)
         pos = self.position(self.pids)
 
         x = self.dropout(emb + pos)
         for block in self.blocks:
-            x = block(x)
+            x = block(x, padding)
 
         return self.output(x)[:, -1, :]
 
@@ -39,8 +39,8 @@ class TransformerBlock(Module):
         self.norm = LayerNorm()
 
 
-    def forward(self, x):
-        z = self.norm(x + self.dropout(self.attention(x)))
+    def forward(self, x, padding):
+        z = self.norm(x + self.dropout(self.attention(x, padding)))
         y = self.norm(z + self.dropout(self.ffl(z)))
         return y
 
@@ -56,8 +56,8 @@ class MultiHeadedAttentionLayer(Module):
         self.wo = Linear(n_heads * d_v, d_in).to(device=device)
 
 
-    def forward(self, x):
-        x = cat([att(x) for att in self.attentions], dim=2)
+    def forward(self, x, padding):
+        x = cat([att(x, padding) for att in self.attentions], dim=2)
         return self.wo(x)
 
 
@@ -74,14 +74,19 @@ class SelfAttentionLayer(Module):
         self.device = device
 
 
-    def forward(self, x):
+    def forward(self, x, padding):
         q, k, v = self.wq(x), self.wk(x), self.wv(x)
         qk = einsum('bid,bjd->bij', q, k) / self.dk
 
-        mask = tril(ones(qk.shape)).to(device=self.device)
+        pad_mask = ones(qk.shape).to(device=self.device)
+        pad_mask = einsum('bij,bj->bij', pad_mask, padding)
+        pad_mask = einsum('bij,bi->bij', pad_mask, padding)
+
+        mask = pad_mask * tril(ones(qk.shape)).to(device=self.device)
         qk = qk.masked_fill(mask==0, float('-inf'))
 
         sqk = self.softmax(qk)
+        sqk = nan_to_num(sqk)
         sa = einsum('bik,bkj->bij', sqk, v)
 
         return sa

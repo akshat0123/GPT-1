@@ -47,7 +47,10 @@ def get_line_ids(line: str, tokenizer: BytePairTokenizer) -> str:
         ids = tokenizer.get_byte_ids(token)
         idstring = ' '.join([str(x) for x in ids])
         lineids += ' ' + idstring
-
+    
+    sol_id = str(tokenizer.get_byte_id(tokenizer.get_sol()))
+    eol_id = str(tokenizer.get_byte_id(tokenizer.get_eol()))
+    lineids = ' '.join([sol_id, lineids.strip(), eol_id])
     return lineids
 
 
