@@ -21,12 +21,16 @@ dev_data:
 model:
     vocab_size: *vocab_size
     seq_size: *window_size
+    #n_layers: 6
     n_layers: 1
-    d_emb: 768
+    #d_emb: 768
+    d_emb: 256
     d_k: 64
     d_v: 64
-    d_h: 3072
-    n_heads: 6
+    #d_h: 3072
+    d_h: 1024
+    #n_heads: 6
+    n_heads: 4
     dropout: 0.1
     device: *device
 
@@ -40,10 +44,10 @@ trainer:
     device: *device
 
 train_subset:
-    size: 100
+    size: 1000
 
 dev_subset:
-    size: 10
+    size: 100
 
 loader:
     drop_last: True

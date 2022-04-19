@@ -1,4 +1,4 @@
-from torch import LongTensor, nan_to_num, einsum, Tensor, square, mean, ones, rand, sqrt, tril, cat
+from torch import LongTensor, nan_to_num, einsum, Tensor, square, mean, ones, rand, sqrt, tril, triu, cat
 from torch.nn import Parameter, ModuleList, Dropout, Softmax, Linear, Module, GELU
 from torch import sum as sum_
 
@@ -80,7 +80,8 @@ class SelfAttentionLayer(Module):
 
         pad_mask = ones(qk.shape).to(device=self.device)
         pad_mask = einsum('bij,bj->bij', pad_mask, padding)
-        pad_mask = einsum('bij,bi->bij', pad_mask, padding)
+        pad_mask += triu(tril(ones(qk.shape))).to(device=self.device)
+        pad_mask[pad_mask==2] = 1
 
         mask = pad_mask * tril(ones(qk.shape)).to(device=self.device)
         qk = qk.masked_fill(mask==0, float('-inf'))

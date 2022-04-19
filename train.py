@@ -59,6 +59,7 @@ def main():
     dloader = DataLoader(collate_fn=collate, **confs['loader'], dataset=dev)
 
     for epoch in range(confs['epochs']):
+
         print(f'\n\nEpoch {epoch+1}')
         train_metrics = trainer.run_epoch(tloader)
         dev_metrics = trainer.run_epoch(dloader, train=False)

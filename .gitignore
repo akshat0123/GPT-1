@@ -1,3 +1,4 @@
 **/__pycache__
-data/**/*.txt
 data/**/*.json
+data/**/*.pth
+data/**/*.txt

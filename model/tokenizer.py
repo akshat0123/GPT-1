@@ -87,6 +87,23 @@ class BytePairTokenizer:
         return ids
 
 
+    def get_bytes(self, byte_ids: List[int]) -> List[str]:
+        """ Get list of bytes for list of byte ids 
+
+        Args:
+            byte_ids: list of byte ids
+
+        Returns:
+            (List[int]): list of bytes
+        """
+
+        tokens = []
+        for byte_id in byte_ids:
+            tokens.append(self.idx_to_vocab[byte_id])
+
+        return tokens
+
+
     def merge_bytes(self, bytes_: List[str]) -> List[str]:
         """ Merge list of bytes until no longer possible
 
