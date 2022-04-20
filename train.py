@@ -12,7 +12,7 @@ from model.model import TransformerDecoder
 from model.trainer import Trainer
 
 
-confpath = 'params.yml'
+confpath = 'confs/params.yml'
 
 
 def save_checkpoint(path, model, opt, sch, epoch):
@@ -46,19 +46,19 @@ def main():
     model = TransformerDecoder(**confs['model'])
     opt = SGD(model.parameters(), **confs['opt'])
     sch = CosineAnnealingLR(opt, **confs['sch'])
-    crit = CrossEntropyLoss()
+    crit = CrossEntropyLoss(ignore_index=30913)
 
     trainer = Trainer(model, crit, opt, sch, **confs['trainer'])
     logger = SummaryWriter()
 
-    train = TokenIDSubset(train_data, **confs['train_subset'])
-    dev = TokenIDSubset(dev_data, **confs['dev_subset'])
-
-    collate = TokenIDDataset.collate
-    tloader = DataLoader(collate_fn=collate, **confs['loader'], dataset=train)
-    dloader = DataLoader(collate_fn=collate, **confs['loader'], dataset=dev)
-
     for epoch in range(confs['epochs']):
+
+        train = TokenIDSubset(train_data, **confs['train_subset'])
+        dev = TokenIDSubset(dev_data, **confs['dev_subset'])
+
+        collate = TokenIDDataset.collate
+        tloader = DataLoader(collate_fn=collate, **confs['loader'], dataset=train)
+        dloader = DataLoader(collate_fn=collate, **confs['loader'], dataset=dev)
 
         print(f'\n\nEpoch {epoch+1}')
         train_metrics = trainer.run_epoch(tloader)

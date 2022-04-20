@@ -19,13 +19,15 @@ class TransformerDecoder(Module):
 
     def forward(self, x, padding):
         emb = self.embedding(x)
-        pos = self.position(self.pids)
+        pos = self.position(self.pids)[None, :, :]
+        pos = pos.expand(x.shape[0], -1, -1) 
+        pos = einsum('bsd,bs->bsd', pos, padding)
 
         x = self.dropout(emb + pos)
         for block in self.blocks:
             x = block(x, padding)
 
-        return self.output(x)[:, -1, :]
+        return self.output(x)
 
 
 class TransformerBlock(Module):

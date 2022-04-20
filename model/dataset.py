@@ -38,7 +38,7 @@ class TokenIDDataset(IterableDataset):
             while end < len(line):
                 ids = LongTensor(line[start:end])
                 pads = (ids!=self.pad[0]).float()
-                yield ids[:-1], ids[-1], pads[:-1], line_idx
+                yield ids[:-1], ids[1:], pads[:-1], line_idx
                 start += 1
                 end += 1
 
@@ -62,12 +62,12 @@ class TokenIDDataset(IterableDataset):
         """
 
         xids = [batch[i][0][None, :] for i in range(len(batch))]
+        yids = [batch[i][1][None, :] for i in range(len(batch))]
         pads = [batch[i][2][None, :] for i in range(len(batch))]
-        yids = [batch[i][1] for i in range(len(batch))]
         line_idx = batch[-1][3]
         xids = cat(xids, dim=0)
         pads = cat(pads, dim=0)
-        yids = stack(yids, dim=0)
+        yids = cat(yids, dim=0)
         return xids, yids, pads, line_idx
 
 
