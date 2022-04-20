@@ -1,4 +1,4 @@
-from random import sample
+from random import randint, sample
 
 from torch import FloatTensor, LongTensor, Tensor, stack, cat
 from torch.utils.data import IterableDataset
@@ -33,14 +33,11 @@ class TokenIDDataset(IterableDataset):
             line = self.data[line_idx].strip().split(' ')
             line = self.pad + [int(x) for x in line]
 
-            # Return each window length sequence of the line
-            start, end = 0, self.window_size + 1
-            while end < len(line):
-                ids = LongTensor(line[start:end])
-                pads = (ids!=self.pad[0]).float()
-                yield ids[:-1], ids[1:], pads[:-1], line_idx
-                start += 1
-                end += 1
+            start = randint(0, len(line)-self.window_size-1)
+            end = start + self.window_size + 1
+            ids = LongTensor(line[start:end])
+            pads = (ids!=self.pad[0]).float()
+            yield ids[:-1], ids[1:], pads[:-1], line_idx
 
 
     def __len__(self):

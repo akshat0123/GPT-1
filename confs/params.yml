@@ -18,32 +18,20 @@ dev_data:
     vocab_size: *vocab_size
     pad: *pad
 
-#model:
-    #vocab_size: *vocab_size
-    #seq_size: *window_size
-    #n_layers: 12
-    #d_emb: 768
-    #d_k: 64
-    #d_v: 64
-    #d_h: 3072
-    #n_heads: 12
-    #dropout: 0.1
-    #device: *device
-
 model:
     vocab_size: *vocab_size
     seq_size: *window_size
-    n_layers: 3
-    d_emb: 384 
+    n_layers: 12
+    d_emb: 768
     d_k: 64
     d_v: 64
-    d_h: 768
-    n_heads: 3
+    d_h: 3072
+    n_heads: 12
     dropout: 0.1
     device: *device
 
 opt:
-    lr: 0.001
+    lr: 0.0001
 
 sch:
     T_max: 1000
@@ -52,10 +40,10 @@ trainer:
     device: *device
 
 train_subset:
-    size: 1000
+    size: 80000
 
 dev_subset:
-    size: 100
+    size: 8000
 
 loader:
     drop_last: True
