@@ -1,4 +1,4 @@
-checkpoint: 'data/checkpoints/model/dingo'
+checkpoint: 'data/checkpoints/model/ekinda'
 epochs: 100
 
 window_size: &window_size 128
@@ -56,4 +56,4 @@ loader:
     batch_size: 32
 
 logger:
-    logdir: 'runs/dingo'
+    logdir: 'runs/ekinda'
