@@ -13,7 +13,7 @@ def main():
 
     confs = yaml.safe_load(open(confpath))
     model = TransformerDecoder(**confs['model'])
-    model.load_state_dict(torch.load('data/model/model.pth')) 
+    model.load_state_dict(torch.load('data/checkpoints/model/dingo/epoch_10/model.pth')) 
     tokenizer = BytePairTokenizer.load('data/checkpoints/tokenizer')
 
     # Create window with pad
@@ -26,7 +26,7 @@ def main():
 
     for i in range(63):
 
-        ntoken_id = torch.argmax(model(token_ids, pad_ids), dim=1)[None, :]
+        ntoken_id = torch.argmax(model(token_ids, pad_ids)[:, -1, :], dim=1)[None, :]
         npad_id = torch.LongTensor([1])[None, :].to(device=confs['device'])
 
         token_ids = torch.cat([token_ids, ntoken_id], dim=1)[:, 1:]

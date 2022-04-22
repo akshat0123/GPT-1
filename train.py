@@ -1,11 +1,11 @@
 import shutil, yaml, os
 
-from torch.optim.lr_scheduler import CosineAnnealingLR
+from torch.optim.lr_scheduler import CosineAnnealingLR, OneCycleLR
 from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
 from torch.nn import CrossEntropyLoss
-from torch.optim import SGD
-from torch import save
+from torch.optim import SGD, Adam
+from torch import ones, save
 
 from model.dataset import TokenIDDataset, TokenIDSubset
 from model.model import TransformerDecoder
@@ -44,15 +44,20 @@ def main():
     dev_data = TokenIDDataset(**confs['dev_data'])
 
     model = TransformerDecoder(**confs['model'])
-    opt = SGD(model.parameters(), **confs['opt'])
-    sch = CosineAnnealingLR(opt, **confs['sch'])
-    crit = CrossEntropyLoss(ignore_index=30913)
+    opt = Adam(model.parameters(), **confs['opt'])
+    sch = OneCycleLR(opt, **confs['sch'])
+
+    weights = ones(confs['vocab_size']).to(device=confs['device'])
+    weights[30913] = 0
+    weights[30914] = 0
+    crit = CrossEntropyLoss(weight=weights)
 
     trainer = Trainer(model, crit, opt, sch, **confs['trainer'])
-    logger = SummaryWriter()
+    logger = SummaryWriter(**confs['logger'])
 
     for epoch in range(confs['epochs']):
 
+        print(f'\n\nEpoch {epoch+1}')
         train = TokenIDSubset(train_data, **confs['train_subset'])
         dev = TokenIDSubset(dev_data, **confs['dev_subset'])
 
@@ -60,7 +65,6 @@ def main():
         tloader = DataLoader(collate_fn=collate, **confs['loader'], dataset=train)
         dloader = DataLoader(collate_fn=collate, **confs['loader'], dataset=dev)
 
-        print(f'\n\nEpoch {epoch+1}')
         train_metrics = trainer.run_epoch(tloader)
         dev_metrics = trainer.run_epoch(dloader, train=False)
         publish_metrics(logger, train_metrics, dev_metrics, epoch+1)

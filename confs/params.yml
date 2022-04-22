@@ -1,22 +1,25 @@
-checkpoint: 'data/checkpoints'
-epochs: 10
+checkpoint: 'data/checkpoints/model/dingo'
+epochs: 100
 
 window_size: &window_size 128
 vocab_size: &vocab_size 30915
 device: &device 'cuda:0'
 pad: &pad 30913
+unk: &unk 30914
 
 train_data:
     datapath: 'data/model/train.txt'
     window_size: *window_size
     vocab_size: *vocab_size
     pad: *pad
+    unk: *unk
 
 dev_data:
     datapath: 'data/model/dev.txt'
     window_size: *window_size
     vocab_size: *vocab_size
     pad: *pad
+    unk: *unk
 
 model:
     vocab_size: *vocab_size
@@ -32,9 +35,12 @@ model:
 
 opt:
     lr: 0.00025
+    weight_decay: 0.01
 
 sch:
-    T_max: 1000
+    max_lr: 0.00025
+    total_steps: 8000000
+    anneal_strategy: 'cos'
 
 trainer:
     device: *device
@@ -44,7 +50,10 @@ train_subset:
 
 dev_subset:
     size: 8000
-
+    
 loader:
     drop_last: True
     batch_size: 32
+
+logger:
+    logdir: 'runs/dingo'

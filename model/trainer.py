@@ -1,5 +1,6 @@
 
-from torch import set_grad_enabled, no_grad, argmax
+from torch import set_grad_enabled, argmax
+from torch.nn.utils import clip_grad_norm_
 from tqdm import tqdm
 
 from model.utils import RollingCounter
@@ -64,6 +65,7 @@ class Trainer:
 
         if train:
             loss.backward()
+            clip_grad_norm_(self.model.parameters(), 1.0)
             self.opt.step()
             self.sch.step()
 

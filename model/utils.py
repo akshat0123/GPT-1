@@ -34,10 +34,14 @@ class RollingCounter:
     def total_average(self) -> float:
         count = self.non_latest_count + len(self.latest_values)
         total = self.non_latest_total + self.latest_total
-        return total / count
+        avg = total / count if count > 0 else 0
+        return avg
 
 
     def rolling_average(self):
-        return self.latest_total / len(self.latest_values)
+        total = self.latest_total
+        count = len(self.latest_values)
+        avg = total / count if count > 0 else 0
+        return avg
 
 

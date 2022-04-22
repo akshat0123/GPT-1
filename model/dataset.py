@@ -9,7 +9,7 @@ class TokenIDDataset(IterableDataset):
 
 
     def __init__(self, datapath: str, window_size: int, vocab_size: int, 
-                 pad: int):
+            pad: int, unk: int):
         """ Dataset class for dataset of variable length lines of text token
             byte pair ids
 
@@ -18,12 +18,15 @@ class TokenIDDataset(IterableDataset):
             window_size: size of window of data to return
             vocab_size: total vocab size for one-hot encodings
             pad: token id for pad token
+            unk: token id for unknown token
         """
         super().__init__()
         self.pad = [pad for i in range(window_size-1)]
         self.data = open(datapath).readlines()
         self.window_size = window_size
         self.vocab_size = vocab_size
+        self.pad_token = pad
+        self.unk_token = unk
 
 
     def __iter__(self):
@@ -36,7 +39,7 @@ class TokenIDDataset(IterableDataset):
             start = randint(0, len(line)-self.window_size-1)
             end = start + self.window_size + 1
             ids = LongTensor(line[start:end])
-            pads = (ids!=self.pad[0]).float()
+            pads = ((ids!=self.pad_token) & (ids!=self.unk_token)).float()
             yield ids[:-1], ids[1:], pads[:-1], line_idx
 
 
@@ -81,6 +84,8 @@ class TokenIDSubset(TokenIDDataset):
         self.data = sample(dataset.data, size)
         self.window_size = dataset.window_size
         self.vocab_size = dataset.vocab_size
+        self.pad_token = dataset.pad_token
+        self.unk_token = dataset.unk_token
         self.pad = dataset.pad
 
 
