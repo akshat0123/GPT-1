@@ -44,14 +44,9 @@ def main():
     dev_data = TokenIDDataset(**confs['dev_data'])
 
     model = TransformerDecoder(**confs['model'])
-    opt = Adam(model.parameters(), **confs['opt'])
+    opt = Adam(model.get_parameters(), **confs['opt'])
     sch = OneCycleLR(opt, **confs['sch'])
-
-    weights = ones(confs['vocab_size']).to(device=confs['device'])
-    weights[30913] = 0
-    weights[30914] = 0
-    crit = CrossEntropyLoss(weight=weights)
-
+    crit = CrossEntropyLoss(ignore_index=confs['unk'])
     trainer = Trainer(model, crit, opt, sch, **confs['trainer'])
     logger = SummaryWriter(**confs['logger'])
 
@@ -66,7 +61,7 @@ def main():
         dloader = DataLoader(collate_fn=collate, **confs['loader'], dataset=dev)
 
         train_metrics = trainer.run_epoch(tloader)
-        dev_metrics = trainer.run_epoch(dloader, train=False)
+        dev_metrics = trainer.run_epoch(dloader, train_mode=False)
         publish_metrics(logger, train_metrics, dev_metrics, epoch+1)
         save_checkpoint(confs['checkpoint'], model, opt, sch, epoch+1)
 
