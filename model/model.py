@@ -36,6 +36,24 @@ class GPT(torch.nn.Module):
         return self.output(out)
 
 
+    def parameters(self):
+
+        params = [
+            { 'params': [], 'weight_decay': 1e-2 },
+            { 'params': [], 'weight_decay': 0.00 },
+        ]
+
+        for name, parameter in self.named_parameters():
+            if ('att' in name or 'ffl' in name or 'output' in name) and \
+               name.endswith('weight'):
+                params[0]['params'].append(parameter)
+
+            else:
+                params[1]['params'].append(parameter)
+            
+        return params
+
+
 class TransformerBlock(torch.nn.Module):
 
 
