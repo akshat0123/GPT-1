@@ -3,6 +3,7 @@ from multiprocessing import Pool
 from itertools import repeat
 from typing import List
 
+from nltk import wordpunct_tokenize, sent_tokenize
 from tqdm import tqdm
 
 from model.tokenizer import BytePairTokenizer, count_byte_freqs
@@ -19,7 +20,7 @@ def tokenize_file(filepath: str, outdir: str, tokenizer: BytePairTokenizer,
     """
 
     outpath = f"{outdir}/{filepath.split('/')[-1]}"
-    lines = open(filepath, encoding='utf-8-sig').readlines()
+    lines = sent_tokenize(open(filepath, encoding='utf-8-sig').read())
 
     tokens = []
     for line in lines:
@@ -47,7 +48,7 @@ def get_line_ids(line: str, tokenizer: BytePairTokenizer) -> List[int]:
         (List[int]): list of token ids
     """
 
-    tokens = line.strip().split(' ')
+    tokens = wordpunct_tokenize(line)
     tokens = [list(t) + [tokenizer.get_eow()] for t in tokens]
 
     lineids = []

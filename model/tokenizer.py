@@ -2,21 +2,14 @@ from typing import Tuple, Dict, List
 from collections import defaultdict
 import json, re
 
+from nltk import wordpunct_tokenize, sent_tokenize
 from tqdm import trange, tqdm
 
 
 class BytePairTokenizer:
 
 
-    def __init__(self, freqs: Dict[str, int], vocab_to_idx: Dict[str, int],
-                 idx_to_vocab: Dict[int, str]):
-        """ Initialize byte pair tokenizer
-
-        Args:
-            freqs: dict mapping vocab to frequenies
-            vocab_to_idx: dict mapping vocab to indices
-            idx_to_vocab: dict mapping indices to vocab
-        """
+    def __init__(self, freqs, vocab_to_idx, idx_to_vocab):
         self.vocab_to_idx = vocab_to_idx
         self.idx_to_vocab = idx_to_vocab
         self.freqs = freqs
@@ -47,15 +40,7 @@ class BytePairTokenizer:
         return self.eow
 
 
-    def get_byte_id(self, byte: str) -> int:
-        """ Get byte id for byte
-
-        Args:
-            byte: byte string
-
-        Returns:
-            (int): byte id
-        """
+    def get_byte_id(self, byte):
 
         if byte in self.vocab_to_idx:
             bid = self.vocab_to_idx[byte]
@@ -66,15 +51,7 @@ class BytePairTokenizer:
         return bid
 
 
-    def get_byte_ids(self, bytes_: List[str]) -> List[int]:
-        """ Get list of byte ids for list of bytes
-
-        Args:
-            bytes_: list of bytes
-
-        Returns:
-            (List[int]): list of byte ids
-        """
+    def get_byte_ids(self, bytes_):
 
         ids = []
         for byte in bytes_:
@@ -87,15 +64,7 @@ class BytePairTokenizer:
         return ids
 
 
-    def get_bytes(self, byte_ids: List[int]) -> List[str]:
-        """ Get list of bytes for list of byte ids 
-
-        Args:
-            byte_ids: list of byte ids
-
-        Returns:
-            (List[int]): list of bytes
-        """
+    def get_bytes(self, byte_ids):
 
         tokens = []
         for byte_id in byte_ids:
@@ -104,15 +73,7 @@ class BytePairTokenizer:
         return tokens
 
 
-    def merge_bytes(self, bytes_: List[str]) -> List[str]:
-        """ Merge list of bytes until no longer possible
-
-        Args:
-            bytes_: list of bytes to merge
-
-        Returns:
-            (List[str]): list of merged bytes
-        """
+    def merge_bytes(self, bytes_):
 
         bytes_, merged = self.merge_max_pair(bytes_)
         while merged:
@@ -121,18 +82,7 @@ class BytePairTokenizer:
         return bytes_ 
 
 
-    def merge_max_pair(self, bytes_: List[str]) -> (List[str], bool):
-        """ Merge maximum frequency byte pair and return list of bytes with
-            maximum pair merged
-
-        Args:
-            bytes_: list of bytes to merge max pair in
-
-        Returns:
-            (List[str]): list of bytes with max byte pair merged
-            (bool): flag indicating whether there was a pair available for
-                    merging
-        """
+    def merge_max_pair(self, bytes_):
 
         max_pair = self.get_max_pair_idxs(bytes_)
         merged = True if max_pair is not None else False
@@ -145,16 +95,7 @@ class BytePairTokenizer:
         return bytes_, merged
 
 
-    def get_max_pair_idxs(self, bytes_: List[str]) -> Tuple[int, int]:
-        """ Return indices of byte pair with highest frequency
-
-        Args:
-            bytes_: list of bytes
-
-        Returns:
-            (Tuple[int, int]): tuple of indices where highest frequency byte
-                               pair is located in bytes list
-        """
+    def get_max_pair_idxs(self, bytes_):
 
         pairs = {}
         for i in range(1, len(bytes_)):
@@ -165,12 +106,7 @@ class BytePairTokenizer:
         return None if len(pairs) == 0 else max(pairs, key=pairs.get) 
 
 
-    def save(self, path: str) -> None:
-        """ Save tokenizer checkpoint
-
-        Args:
-            path: directory to save tokenizer
-        """
+    def save(self, path: str):
 
         with open(f'{path}/freqs.json', 'w', encoding='utf-8') as outfile:
             json.dump(self.freqs, outfile, indent=4, ensure_ascii=False)
@@ -183,15 +119,7 @@ class BytePairTokenizer:
 
 
     @staticmethod
-    def load(path: str) -> 'BytePairTokenizer':
-        """ Load BytePairTokenizer instance from checkpoint
-
-        Args:
-            path: path of checkpoint
-
-        Returns:
-            (BytePairTokenizer): instantiated BytePairTokenizer
-        """
+    def load(path):
 
         with open(f'{path}/freqs.json', 'r', encoding='utf-8') as infile:
             freqs = json.load(infile)
@@ -206,19 +134,11 @@ class BytePairTokenizer:
 
 
     @staticmethod
-    def train_bpe(filepaths: str, merges: int) -> 'BytePairTokenizer':
-        """ Train byte pair tokenizer from list of files
-
-        Args:
-            filepaths: path to list of newline-separated filepaths to train
-                       tokenizer on
-            merges: number of times to merge corpus
-
-        Returns:
-            (BytePairTokenizer): trained byte pair tokenizer
-        """
+    def train_bpe(filepaths, mincount, merges):
 
         vocab = create_vocab(filepaths)
+        truncate_vocab(vocab, mincount)
+        vocab = prepare_bpe_vocab(vocab)
 
         for i in trange(merges, desc='Merging'):
             pairs = get_stats(vocab)
@@ -234,23 +154,15 @@ class BytePairTokenizer:
         return BytePairTokenizer(freqs, vocab_to_idx, idx_to_vocab)
 
 
-def create_vocab(filepaths: List[str]) -> Dict[str, int]:
-    """ Create vocabulary from files in list of filepaths
-
-    Args:
-        filepaths: list of filepaths to create vocabulary from
-
-    Returns:
-        (Dict[str, int]): dictionary mapping vocabulary words to frequencies
-    """
+def create_vocab(filepaths):
 
     vocab = defaultdict(int)
     for path in tqdm(filepaths, desc='Creating vocabulary'):
-        lines = open(path, encoding='utf-8-sig').readlines()
-        lines = [line.strip() for line in lines]
+        text = open(path, 'r', encoding='utf-8-sig').read()
+        sentences = sent_tokenize(text)
 
-        for line in lines:
-            tokens = [' '.join(list(t)) + ' </w>' for t in line.split(' ')]
+        for sentence in sentences:
+            tokens = wordpunct_tokenize(sentence)
 
             for token in tokens:
                 vocab[token] += 1
@@ -258,17 +170,25 @@ def create_vocab(filepaths: List[str]) -> Dict[str, int]:
     return vocab
 
 
-def get_stats(vocab: Dict[str, int]) -> Dict[Tuple[str, str], int]:
-    """ Count byte pairs in vocabulary
+def truncate_vocab(vocab, mincount):
 
-    Args:
-        vocab: dictionary mapping vocabulary to frequencies
+    tokens = list(vocab.keys())
+    for token in tokens:
+        if vocab[token] < mincount:
+            del(vocab[token])
 
-    Returns:
-        (Dict[Tuple[str, str], int]): dictionary mapping byte pairs to
-                                      frequencies 
-    """
 
+def prepare_bpe_vocab(vocab):
+
+    bpe_vocab = {}
+    for token in vocab:
+        ntoken = ' '.join(list(token)) + ' </w>'
+        bpe_vocab[ntoken] = vocab[token]
+
+    return bpe_vocab
+
+
+def get_stats(vocab):
     pairs = defaultdict(int)
 
     for word, freq in vocab.items():
@@ -280,16 +200,7 @@ def get_stats(vocab: Dict[str, int]) -> Dict[Tuple[str, str], int]:
     return pairs
 
 
-def merge_vocab(pair: Tuple[str, str], v_in: Dict[str, int]) -> Dict[str, int]:
-    """ Merge given byte pair in vocabulary
-
-    Args:
-        pair: byte pair to join in vocabulary
-        v_in: input vocabulary
-
-    Returns:
-        (Dict[str, int]): vocabulary with given byte pair merged
-    """
+def merge_vocab(pair, v_in):
 
     bigram = re.escape(' '.join(pair))
     v_out = {}
@@ -302,15 +213,7 @@ def merge_vocab(pair: Tuple[str, str], v_in: Dict[str, int]) -> Dict[str, int]:
     return v_out
 
 
-def count_byte_freqs(vocab: Dict[str, int]) -> Dict[str, int]:
-    """ Count frequency of bytes
-
-    Args:
-        vocab: dictionary of vocabulary mapped to frequency
-
-    Returns:
-        (Dict[str, int]): dictionary of bytes mapped to frequency
-    """
+def count_byte_freqs(vocab):
 
     freqs = defaultdict(int)
     for word in vocab:
@@ -324,18 +227,7 @@ def count_byte_freqs(vocab: Dict[str, int]) -> Dict[str, int]:
     return freqs
 
 
-def create_vocab_maps(freqs: Dict[str, int]) -> (Dict[str, int], \
-                      Dict[int, str]):
-    """ Create map of bytes to indices and map of indices to bytes from given
-        map of bytes to their frequencies
-
-    Args:
-        freqs: map of bytes to frequencies
-
-    Returns:
-        (Dict[str, int]): map of bytes to indices
-        (Dict[int, str]): map of indices to bytes
-    """
+def create_vocab_maps(freqs):
 
     ordered_freqs = sorted(freqs.items(), key=lambda x: x[1], reverse=True)
     vocab_to_idx, idx_to_vocab = {}, {}

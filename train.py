@@ -4,12 +4,13 @@ from torch.optim.lr_scheduler import CosineAnnealingLR, OneCycleLR
 from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
 from torch.nn import CrossEntropyLoss
-from torch.optim import SGD, Adam
+from torch.optim import SGD, AdamW
 from torch import ones, save
+import torch
 
 from model.dataset import TokenIDDataset, TokenIDSubset
-from model.model import TransformerDecoder
 from model.trainer import Trainer
+from model.model import GPT
 
 
 confpath = 'confs/params.yml'
@@ -43,8 +44,8 @@ def main():
     train_data = TokenIDDataset(**confs['train_data'])
     dev_data = TokenIDDataset(**confs['dev_data'])
 
-    model = TransformerDecoder(**confs['model'])
-    opt = Adam(model.get_parameters(), **confs['opt'])
+    model = GPT(**confs['model'])
+    opt = AdamW(model.parameters(), **confs['opt'])
     sch = OneCycleLR(opt, **confs['sch'])
     crit = CrossEntropyLoss(ignore_index=confs['unk'])
     trainer = Trainer(model, crit, opt, sch, **confs['trainer'])

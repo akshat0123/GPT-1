@@ -1,194 +1,165 @@
-from torch import LongTensor, nan_to_num, einsum, Tensor, square, mean, ones, rand, sqrt, tril, triu, cat
-from torch.nn import Parameter, ModuleList, Dropout, Softmax, Linear, Module, GELU
-from torch.nn.init import normal_, zeros_
-from torch import sum as sum_
+import torch
 
 
-class TransformerDecoder(Module):
+class GPT(torch.nn.Module):
 
 
-    def __init__(self, vocab_size, seq_size, n_layers, d_emb, d_k, d_v, d_h, n_heads, dropout, device):
+    def __init__(self, vocab, seq, n_layers, n_heads, dim, hidden, dropout, device):
         super().__init__()
-        self.pids = LongTensor([i for i in range(seq_size)]).to(device=device)
-        self.embedding = Embedding(vocab_size, d_emb, device)
-        self.position = Embedding(seq_size, d_emb, device)
-        self.dropout = Dropout(dropout)
-
-        self.blocks = [TransformerBlock(d_emb, d_k, d_v, d_h, n_heads, dropout, device) for i in range(n_layers)]
-        self.output = Linear(d_emb, vocab_size).to(device=device)
-
-        normal_(self.output.weight, mean=0, std=0.02)
-        zeros_(self.output.bias)
-
-
-    def forward(self, x, ignore):
-        emb = self.embedding(x)
-        pos = self.position(self.pids)
-
-        pos = self.position(self.pids).unsqueeze(0)
-        pos = pos.expand(x.shape[0], -1, -1) 
-        pos = einsum('bsd,bs->bsd', pos, (ignore==0).float())
-
-        x = self.dropout(emb + pos)
-        for block in self.blocks:
-            x = block(x, ignore)
-
-        return self.output(x)
-
-
-    def get_parameters(self):
-
-        params = [ 
-            {'params': [], 'weight_decay': 1e-5 },
-            {'params': [], 'weight_decay': 0.00 }
-        ]
-
-        for name, parameter in self.named_parameters():
-
-            if 'bias' in name:
-                params[1]['params'].append(parameter)
-
-            else:
-                params[0]['params'].append(parameter)
-
-        return params
-
-
-class TransformerBlock(Module):
-
-
-    def __init__(self, d_in, d_k, d_v, d_h, n_heads, dropout, device):
-        super().__init__()
-        self.attention = MultiHeadedAttentionLayer(d_in, d_k, d_v, n_heads, device)
-        self.ffl = FeedForwardLayer(d_in, d_h, device)
-        self.dropout = Dropout(dropout).to(device=device)
-        self.norm1 = LayerNorm()
-        self.norm2 = LayerNorm()
-
-
-    def forward(self, x, ignore):
-        z = self.norm1(x + self.dropout(self.attention(x, ignore)))
-        y = self.norm2(z + self.dropout(self.ffl(z)))
-        return y
-
-
-class MultiHeadedAttentionLayer(Module):
-
-
-    def __init__(self, d_in, d_k, d_v, n_heads, device):
-        super().__init__()
-        self.attentions = ModuleList([
-            SelfAttentionLayer(d_in, d_k, d_v, device) for i in range(n_heads)
+        self.bpe_embed = torch.nn.Embedding(vocab, dim).to(device)
+        self.pos_embed = torch.nn.Embedding(seq, dim).to(device)
+        self.pos = torch.LongTensor([i for i in range(128)]).to(device)
+        self.blocks = torch.nn.ModuleList([
+            TransformerBlock(n_heads, dim, hidden, dropout, device) \
+            for i in range(n_layers)
         ])
-        self.wo = Linear(n_heads * d_v, d_in).to(device=device)
+        self.output = torch.nn.Linear(dim, vocab).to(device)
+        self.drop = torch.nn.Dropout(dropout).to(device)
+        self.init_weights()
 
-        normal_(self.wo.weight, mean=0.0, std=0.02)
-        zeros_(self.wo.bias)
+
+    def init_weights(self):
+        torch.nn.init.normal_(self.bpe_embed.weight, mean=0.0, std=0.02) 
+        torch.nn.init.normal_(self.pos_embed.weight, mean=0.0, std=0.02) 
+        torch.nn.init.normal_(self.output.weight, mean=0.0, std=0.02) 
+        torch.nn.init.zeros_(self.output.bias) 
 
 
     def forward(self, x, ignore):
-        x = cat([att(x, ignore) for att in self.attentions], dim=2)
-        return self.wo(x)
+        be = self.bpe_embed(x)
+        pe = self.pos_embed(self.pos)
+
+        out = self.drop(be + pe)
+        for block in self.blocks:
+            out = block(out, ignore)
+
+        return self.output(out)
 
 
-class SelfAttentionLayer(Module):
+class TransformerBlock(torch.nn.Module):
 
 
-    def __init__(self, d_in, d_k, d_v, device):
+    def __init__(self, n_heads, dim, hidden, dropout, device):
         super().__init__()
-        self.wq = Linear(d_in, d_k).to(device=device)
-        self.wk = Linear(d_in, d_k).to(device=device)
-        self.wv = Linear(d_in, d_v).to(device=device)
-        self.dk = sqrt(Tensor([d_k])).to(device=device)
-        self.softmax = Softmax(dim=2).to(device=device)
-        self.device = device
+        self.att = MultiHeadAttentionLayer(n_heads, dim, device)
+        self.ffl = FeedForwardLayer(dim, hidden, device)
+        self.norm1 = torch.nn.LayerNorm(dim).to(device)
+        self.norm2 = torch.nn.LayerNorm(dim).to(device)
+        self.drop1 = torch.nn.Dropout(dropout).to(device)
+        self.drop2 = torch.nn.Dropout(dropout).to(device)
+        self.init_weights()
 
-        normal_(self.wq.weight, mean=0.0, std=0.02)
-        normal_(self.wk.weight, mean=0.0, std=0.02)
-        normal_(self.wv.weight, mean=0.0, std=0.02)
-        zeros_(self.wq.bias)
-        zeros_(self.wk.bias)
-        zeros_(self.wv.bias)
+
+    def init_weights(self):
+        torch.nn.init.ones_(self.norm1.weight)
+        torch.nn.init.ones_(self.norm2.weight)
+        torch.nn.init.zeros_(self.norm1.bias)
+        torch.nn.init.zeros_(self.norm2.bias)
+
+
+    def forward(self, x, ignore):
+        out = self.norm1(x + self.drop1(self.att(x, ignore)))
+        return self.norm2(out + self.drop2(self.ffl(out)))
+
+
+class MultiHeadAttentionLayer(torch.nn.Module):
+
+
+    def __init__(self, n_heads, dim, device):
+        super().__init__()
+        self.heads = torch.nn.ModuleList([
+            SelfAttentionLayer(dim, dim // n_heads, device) \
+            for i in range(n_heads)
+        ])
+        self.wo = torch.nn.Linear(dim, dim).to(device)
+        self.init_weights()
+
+
+    def init_weights(self):
+        torch.nn.init.normal_(self.wo.weight, mean=0.0, std=0.02) 
+        torch.nn.init.zeros_(self.wo.bias) 
+
+
+    def forward(self, x, ignore):
+        out = torch.cat([head(x, ignore) for head in self.heads], dim=2)
+        return self.wo(out)
+
+
+class SelfAttentionLayer(torch.nn.Module):
+
+
+    def __init__(self, d_in, d_out, device):
+        super().__init__()
+        self.wq = torch.nn.Linear(d_in, d_out).to(device)
+        self.wk = torch.nn.Linear(d_in, d_out).to(device)
+        self.wv = torch.nn.Linear(d_in, d_out).to(device)
+        self.scale = torch.sqrt(torch.Tensor([d_out])).to(device)
+        self.softmax = torch.nn.Softmax(dim=2).to(device)
+        self.device = device
+        self.init_weights()
+
+
+    def init_weights(self):
+        torch.nn.init.normal_(self.wq.weight, mean=0.0, std=0.02) 
+        torch.nn.init.normal_(self.wk.weight, mean=0.0, std=0.02) 
+        torch.nn.init.normal_(self.wv.weight, mean=0.0, std=0.02) 
+        torch.nn.init.zeros_(self.wq.bias) 
+        torch.nn.init.zeros_(self.wk.bias) 
+        torch.nn.init.zeros_(self.wv.bias) 
 
 
     def forward(self, x, ignore):
 
-        q, k, v = self.wq(x), self.wk(x), self.wv(x)
-        qk = einsum('bid,bjd->bij', q, k) / self.dk
+        q = self.wq(x)
+        k = self.wk(x)
+        v = self.wv(x)
 
-        ignore_mask = self.get_ignore_mask(qk, ignore)
-        forward_mask = self.get_forward_mask(qk)
-        mask = ignore_mask * forward_mask
-        qk = qk.masked_fill(mask==0, float('-inf'))
+        att = torch.einsum('bqd,bkd->bqk', q, k)
+        att /= self.scale
 
-        sqk = self.softmax(qk)
-        sa = einsum('bik,bkj->bij', sqk, v)
+        causal_mask = torch.tril(torch.ones(att.shape)).to(self.device)
+        ignore_mask = self.get_ignore_mask(att, ignore)
+        mask = causal_mask * ignore_mask
 
-        return sa
+        att = att.masked_fill(mask==0, float('-inf'))
+        att = self.softmax(att)
+        att = torch.einsum('bqk,bkd->bqd', att, v)
+
+        return att
 
 
-    def get_ignore_mask(self, qk, ignore):
-        ignore_mask = ones(qk.shape).to(device=self.device)
-        ignore_mask = einsum('bij,bj->bij', ignore_mask, (ignore==0).float())
-        ignore_mask += triu(tril(ones(qk.shape))).to(device=self.device)
-        ignore_mask[ignore_mask==2] = 1
+    def get_ignore_mask(self, att, ignore):
+
+        ignore_mask = torch.ones(att.shape).to(self.device)
+        ignore_mask = torch.einsum(
+            'bqk,bk->bqk', 
+            ignore_mask, 
+            (ignore==0).float()
+        )
+        ignore_mask += torch.triu(torch.tril(torch.ones(att.shape))).to(self.device)
+        ignore_mask[(ignore_mask==2)] = 1
+
         return ignore_mask
 
 
-    def get_forward_mask(self, qk):
-        return tril(ones(qk.shape)).to(device=self.device)
-
-
-class FeedForwardLayer(Module):
+class FeedForwardLayer(torch.nn.Module):
 
 
     def __init__(self, d_in, d_h, device):
         super().__init__()
-        self.linear1 = Linear(d_in, d_h).to(device=device)
-        self.linear2 = Linear(d_h, d_in).to(device=device)
-        self.activation = GELU().to(device=device)
-
-        normal_(self.linear1.weight, mean=0.0, std=0.02)
-        normal_(self.linear2.weight, mean=0.0, std=0.02)
-        zeros_(self.linear1.bias)
-        zeros_(self.linear2.bias)
-
-        
-    def forward(self, x):
-        x = self.linear1(x)
-        x = self.linear2(x)
-        return self.activation(x)
+        self.l1 = torch.nn.Linear(d_in, d_h).to(device)
+        self.l2 = torch.nn.Linear(d_h, d_in).to(device)
+        self.gelu = torch.nn.GELU().to(device)
 
 
-class Embedding(Module):
-
-
-    def __init__(self, vocab_size, dim, device):
-        super().__init__()
-        self.embeddings = Parameter(
-            rand((vocab_size, dim)), 
-            requires_grad=True
-        ).to(device=device)
-
-        normal_(self.embeddings, mean=0.0, std=0.02)
+    def init_weights(self):
+        torch.nn.init.normal_(self.l1.weight, mean=0.0, std=0.02) 
+        torch.nn.init.normal_(self.l2.weight, mean=0.0, std=0.02) 
+        torch.nn.init.zeros_(self.l1.bias) 
+        torch.nn.init.zeros_(self.l2.bias) 
 
 
     def forward(self, x):
-        return self.embeddings[x]
-
-
-class LayerNorm(Module):
-
-
-    def __init__(self):
-        super().__init__()
-
-
-    def forward(self, x):
-        mu = mean(x, dim=2)[:, :, None]
-        sigma = square(x - mu)
-        sigma = sum_(sigma, dim=2) / x.shape[2]
-        sigma = sqrt(sigma)[:, :, None]
-        return (x - mu) / sigma
-
-
+        out = self.l1(x)
+        out = self.l2(out)
+        return self.gelu(out)

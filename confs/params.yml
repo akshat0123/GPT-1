@@ -1,10 +1,10 @@
-checkpoint: 'data/checkpoints/model/koala'
+checkpoint: 'data/checkpoints/model/aardvark'
 epochs: 100
 
 window_size: &window_size 128
-vocab_size: &vocab_size 30915
+vocab_size: &vocab_size 39352
 device: &device 'cuda:0'
-unk: &unk 30914
+unk: &unk 39351
 
 train_data:
     datapath: 'data/model/train.txt'
@@ -19,14 +19,12 @@ dev_data:
     unk: *unk
 
 model:
-    vocab_size: *vocab_size
-    seq_size: *window_size
+    vocab: *vocab_size
+    seq: *window_size
     n_layers: 12
-    d_emb: 768
-    d_k: 64
-    d_v: 64
-    d_h: 3072
     n_heads: 12
+    dim: 768
+    hidden: 3072
     dropout: 0.1
     device: *device
 
@@ -54,4 +52,4 @@ loader:
     batch_size: 32
 
 logger:
-    logdir: 'runs/koala'
+    logdir: 'runs/aardvark'
