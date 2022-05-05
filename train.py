@@ -45,7 +45,7 @@ def main():
     dev_data = TokenIDDataset(**confs['dev_data'])
 
     model = GPT(**confs['model'])
-    opt = AdamW(model.parameters(), **confs['opt'])
+    opt = AdamW(model.get_parameters(), **confs['opt'])
     sch = OneCycleLR(opt, **confs['sch'])
     crit = CrossEntropyLoss(ignore_index=confs['unk'])
     trainer = Trainer(model, crit, opt, sch, **confs['trainer'])

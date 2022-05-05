@@ -36,7 +36,7 @@ class GPT(torch.nn.Module):
         return self.output(out)
 
 
-    def parameters(self):
+    def get_parameters(self):
 
         params = [
             { 'params': [], 'weight_decay': 1e-2 },
