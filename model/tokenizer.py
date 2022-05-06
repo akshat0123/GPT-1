@@ -64,6 +64,10 @@ class BytePairTokenizer:
         return ids
 
 
+    def get_byte(self, byte_id):
+        return self.idx_to_vocab[byte_id]
+
+
     def get_bytes(self, byte_ids):
 
         tokens = []

@@ -1,4 +1,3 @@
-from random import randint
 import yaml
 
 from tqdm import trange
@@ -18,46 +17,53 @@ def main():
     model.load_state_dict(torch.load('data/checkpoints/model/aardvark/epoch_100/model.pth')) 
     tokenizer = BytePairTokenizer.load('data/checkpoints/tokenizer')
 
-    string = "What animal do you like the most"
-    chunks = string.split(" ")
+    window_size = confs['window_size']
+    device = confs['device']
+    K = 100 
 
-    line = [tokenizer.get_sol()]
+    tokens = [tokenizer.get_sol()]
+
+    string = "Hello World!"
+    chunks = string.split(" ")
     for chunk in chunks:
         bytes_ = list(chunk) + [tokenizer.get_eow()]
-        line += tokenizer.merge_bytes(bytes_)
+        tokens += tokenizer.merge_bytes(bytes_)
 
-    line_ids = torch.LongTensor(tokenizer.get_byte_ids(line)).unsqueeze(0)
+    token_ids = torch.LongTensor(tokenizer.get_byte_ids(tokens)).unsqueeze(0)
     pad_id = tokenizer.get_byte_id(tokenizer.get_pad())
-    pad_size = confs['window_size'] - line_ids.size(1)
+    pad_size = window_size - token_ids.size(1)
     padding = torch.full((1, pad_size), pad_id, dtype=torch.long)
 
-    device = confs['device']
-    end_idx = line_ids.shape[1] - 1
-    line_ids = torch.cat([line_ids, padding], dim=1).to(device=device)
-    ignore_ids = (line_ids==pad_id).float().to(device=device) 
+    token_ids = torch.cat([token_ids, padding], dim=1).to(device=device)
+    ignore_ids = (token_ids==pad_id).float().to(device=device) 
+    end_idx = len(tokens) - 1
 
     model.eval()
     with torch.no_grad():
 
-        for i in trange(75):
+        for i in trange(128):
 
-            output = model(line_ids, ignore_ids)
+            output = model(token_ids, ignore_ids)
 
-            next_id_probs = output[:, end_idx, :]
-            next_id_cands = torch.argsort(next_id_probs, descending=True)
-            next_id = next_id_cands[0, randint(0, 10)].unsqueeze(0).unsqueeze(0)
+            next_id_probs = output[:, end_idx, :].flatten()
+            next_id_cands = torch.argsort(next_id_probs, descending=True)[:K]
+            next_id_probs = next_id_probs[next_id_cands]
+            next_id_probs = torch.nn.functional.softmax(next_id_probs, dim=0)
+            next_id = next_id_cands[torch.multinomial(next_id_probs, 1)]
 
-            line_ids = torch.cat([line_ids[:, :end_idx+1], next_id], dim=1)
-            pad_size = confs['window_size'] - line_ids.size(1)
-            padding = torch.full((1, pad_size), pad_id, dtype=torch.long)
+            tokens.append(tokenizer.get_byte(str(next_id.item())))
 
-            line_ids = torch.cat([line_ids, padding.to(device=device)], dim=1)
-            ignore_ids = (line_ids==pad_id).float() 
+            if end_idx < window_size-1:
+                token_ids = torch.cat([token_ids[:, :end_idx+1], next_id.unsqueeze(0)], dim=1)
+                pad_size = window_size - token_ids.size(1)
+                padding = torch.full((1, pad_size), pad_id, dtype=torch.long)
+                token_ids = torch.cat([token_ids, padding.to(device=device)], dim=1)
+                ignore_ids = (token_ids==pad_id).float() 
+                end_idx += 1
 
-            end_idx += 1
-
-        print_ids = line_ids[(line_ids!=pad_id).nonzero(as_tuple=True)]
-        tokens = tokenizer.get_bytes([str(x) for x in print_ids.tolist()])
+            else:
+                token_ids = torch.cat([token_ids[:, 1:], next_id.unsqueeze(0)], dim=1)
+                ignore_ids = (token_ids==pad_id).float() 
 
     text, word = [], ''
     for i in range(len(tokens)):
