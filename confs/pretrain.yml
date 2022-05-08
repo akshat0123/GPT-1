@@ -1,0 +1,55 @@
+checkpoint: 'data/checkpoints/pretrain/aardvark'
+epochs: 100
+
+window_size: &window_size 128
+vocab_size: &vocab_size 39352
+device: &device 'cuda:0'
+unk: &unk 39351
+
+train_data:
+    datapath: 'data/pretrain/train.txt'
+    window_size: *window_size
+    vocab_size: *vocab_size
+    unk: *unk
+
+dev_data:
+    datapath: 'data/pretrain/dev.txt'
+    window_size: *window_size
+    vocab_size: *vocab_size
+    unk: *unk
+
+model:
+    vocab: *vocab_size
+    seq: *window_size
+    n_layers: 12
+    n_heads: 12
+    dim: 768
+    hidden: 3072
+    dropout: 0.1
+    device: *device
+
+opt:
+    lr: 0.00025
+    betas: [0.9, 0.95]
+
+sch:
+    max_lr: 0.00025
+    total_steps: 250000
+    anneal_strategy: 'cos'
+    pct_start: 0.10
+
+trainer:
+    device: *device
+
+train_subset:
+    size: 80000
+
+dev_subset:
+    size: 8000
+
+loader:
+    drop_last: True
+    batch_size: 32
+
+logger:
+    logdir: 'runs/pretrain/aardvark'

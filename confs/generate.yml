@@ -1,0 +1,22 @@
+pretrained_model: 'data/checkpoints/finetune/albatross/epoch_100/model.pth'
+trained_tokenizer: 'data/checkpoints/tokenizer'
+
+window_size: &window_size 128
+vocab_size: &vocab_size 39352
+device: &device 'cuda:0'
+unk: &unk 39351
+
+model:
+    vocab: *vocab_size
+    seq: *window_size
+    n_layers: 12
+    n_heads: 12
+    dim: 768
+    hidden: 3072
+    dropout: 0.1
+    device: *device
+
+sequencer:
+    window_size: *window_size
+    k: 100
+    device: *device
