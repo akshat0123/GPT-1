@@ -1,19 +1,15 @@
-import shutil, yaml, os
+import argparse, shutil, yaml, os
 
-from torch.optim.lr_scheduler import CosineAnnealingLR, OneCycleLR
+from torch.optim.lr_scheduler import OneCycleLR
 from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
 from torch.nn import CrossEntropyLoss
-from torch.optim import SGD, AdamW
-from torch import ones, save
-import torch
+from torch import load, ones, save
+from torch.optim import AdamW
 
 from model.dataset import TokenIDDataset, TokenIDSubset
 from model.trainer import Trainer
 from model.model import GPT
-
-
-confpath = 'confs/params.yml'
 
 
 def save_checkpoint(path, model, opt, sch, epoch):
@@ -39,6 +35,13 @@ def publish_metrics(logger, train_metrics, dev_metrics, epoch):
 
 def main():
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-c', '--confpath', type=str, required=True)
+    parser.add_argument('-ch', '--checkpoint', type=str, default=None)
+    args = parser.parse_args()
+    confpath = args.confpath
+    checkpoint = args.checkpoint
+
     confs = yaml.safe_load(open(confpath))
 
     train_data = TokenIDDataset(**confs['train_data'])
@@ -51,7 +54,14 @@ def main():
     trainer = Trainer(model, crit, opt, sch, **confs['trainer'])
     logger = SummaryWriter(**confs['logger'])
 
-    for epoch in range(confs['epochs']):
+    start_epoch = 0
+    if checkpoint is not None:
+        model.load_state_dict(load(f'{checkpoint}/model.pth'))
+        opt.load_state_dict(load(f'{checkpoint}/opt.pth'))
+        sch.load_state_dict(load(f'{checkpoint}/sch.pth'))
+        start_epoch = int(checkpoint.split('epoch_')[-1].strip('/'))
+
+    for epoch in range(start_epoch, confs['epochs']):
 
         print(f'\n\nEpoch {epoch+1}')
         train = TokenIDSubset(train_data, **confs['train_subset'])

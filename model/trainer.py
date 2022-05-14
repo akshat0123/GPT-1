@@ -1,6 +1,8 @@
+from typing import Dict
 
-from torch import set_grad_enabled, argmax
+from torch import set_grad_enabled, argmax, Tensor
 from torch.nn.utils import clip_grad_norm_
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from model.utils import RollingCounter
@@ -9,7 +11,18 @@ from model.utils import RollingCounter
 class Trainer:
 
 
-    def __init__(self, model, crit, opt, sch, device):
+    def __init__(self, model: 'Model', crit: 'Loss', opt: 'Optimizer', 
+                 sch: 'Scheduler', device: str):
+        """ Initialize trainer
+
+        Args:
+            model: model to train
+            crit: loss function to train with
+            opt: optimizer to train with
+            sch: learning rate scheduler
+            device: device to place trainer on
+        """
+
         self.device = device
         self.model = model
         self.crit = crit
@@ -17,7 +30,16 @@ class Trainer:
         self.sch = sch
         
 
-    def run_epoch(self, loader, train_mode=True):
+    def run_epoch(self, loader: DataLoader, train_mode: bool=True) -> Dict[str, int]:
+        """ Run a single epoch of training
+
+        Args:
+            loader: data loader to train / evaluate data on
+            train_mode: flag indicating whether epoch is training or evaluation
+
+        Returns:
+            (Dict[str, int]): dictionary containing epoch metrics
+        """
 
         loss_metric, err_metric = RollingCounter(1000), RollingCounter(1000)
         progress = tqdm(total=len(loader), desc='LR: | Loss: | Err: ')
@@ -47,7 +69,20 @@ class Trainer:
         }
 
 
-    def step(self, x, y, ignore, train_mode=True):
+    def step(self, x: Tensor, y: Tensor, ignore: Tensor, 
+             train_mode: bool=True) -> (float, float):
+        """ Run one training step
+
+        Args:
+            x: input
+            y: labels
+            ignore: input indices to ignore
+            train_mode: flag indicating whether to train model during step
+
+        Returns:
+            (float): loss
+            (float): error
+        """
 
         if train_mode:
             self.model.zero_grad()

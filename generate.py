@@ -1,14 +1,14 @@
 import argparse, yaml
 
 from tqdm import trange
-import torch
+from torch import load
 
 from model.tokenizer import BytePairTokenizer
 from model.sequencer import Sequencer
 from model.model import GPT
 
 
-confpath = 'confs/params.yml'
+confpath = 'confs/generate.yml'
 
 
 def main():
@@ -20,8 +20,8 @@ def main():
 
     confs = yaml.safe_load(open(confpath))
     model = GPT(**confs['model'])
-    model.load_state_dict(torch.load(confs['pretrained_model'])) 
-    tokenizer = BytePairTokenizer.load('data/checkpoints/tokenizer')
+    model.load_state_dict(load(confs['pretrained_model'])) 
+    tokenizer = BytePairTokenizer.load(confs['trained_tokenizer'])
 
     sequencer = Sequencer(model, tokenizer, **confs['sequencer'])
     sequence = sequencer.generate_sequence(length)
