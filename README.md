@@ -1,4 +1,4 @@
-# GPT-1 Replica
+# GPT-1
 This repository contains a pytorch implementation of the GPT-1 model introduced
 by OpenAI in the paper [Improving Language Understanding with Unsupervised
 Learning][1]. This repository contains source code for the model as well as code
